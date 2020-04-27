@@ -384,7 +384,7 @@ sub send {
 sub async {
   my ($self, $cb) = @_;
   my $cv = $self->messages->async;
-  $cv->callback(sub{ $cb->( $cv->recv ) });
+  $cv->cb(sub{ $cb->( $cv->recv ) });
   return;
 }
 
