@@ -1,8 +1,7 @@
 use strict;
 use warnings;
 
-use Test2::V0;
-use Test2::Tools::Compare qw(bag item end);
+use Test::More;
 use AnyEvent;
 use IPC::Simple;
 
@@ -30,10 +29,10 @@ my $msgs = [];
 push @$msgs, $proc->recv;
 push @$msgs, $proc->recv;
 
-is $msgs, bag{
-  item ['starting', IPC_STDERR];
-  item ['hello world', IPC_STDOUT];
-}, 'recv';
+ok((grep{ $_ eq 'starting' } @$msgs), 'recv: str overload');
+ok((grep{ $_ eq 'hello world' } @$msgs), 'recv: str overload');
+ok((grep{ $_ == IPC_STDOUT } @$msgs), 'recv: == overload');
+ok((grep{ $_ == IPC_STDERR } @$msgs), 'recv: == overload');
 
 $proc->terminate;
 ok $proc->is_stopping, 'is_stopping';

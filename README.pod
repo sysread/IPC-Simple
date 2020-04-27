@@ -20,13 +20,23 @@ version 0.01
   );
 
   if ($ssh->launch) {
-    $ssh->send('cd $HOME/some/dir');
-    $ssh->send('ls -lah');
-    $ssh->send('exit');
+    $ssh->send('ls -lah');          # get directory listing
+    $ssh->send('echo');             # signal our loop that the listing is done
 
-    while (my $line = $ssh->recv) {
-      say $line;
+    while (my $msg = $ssh->recv) {  # echo's output will be an empty string
+      if ($msg == IPC_ERROR) {      # I/O error
+        croak $msg;
+      }
+      elsif ($msg == IPC_STDERR) {  # output to STDERR
+        warn $msg;
+      }
+      elsif ($msg == IPC_STDOUT) {  # output to STDOUT
+        say $msg;
+      }
     }
+
+    $ssh->send('exit');             # terminate the connection
+    $ssh->join;                     # wait for the process to terminate
   }
 
 =head1 DESCRIPTION

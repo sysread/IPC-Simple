@@ -11,13 +11,23 @@ package IPC::Simple;
   );
 
   if ($ssh->launch) {
-    $ssh->send('cd $HOME/some/dir');
-    $ssh->send('ls -lah');
-    $ssh->send('exit');
+    $ssh->send('ls -lah');          # get directory listing
+    $ssh->send('echo');             # signal our loop that the listing is done
 
-    while (my $line = $ssh->recv) {
-      say $line;
+    while (my $msg = $ssh->recv) {  # echo's output will be an empty string
+      if ($msg == IPC_ERROR) {      # I/O error
+        croak $msg;
+      }
+      elsif ($msg == IPC_STDERR) {  # output to STDERR
+        warn $msg;
+      }
+      elsif ($msg == IPC_STDOUT) {  # output to STDOUT
+        say $msg;
+      }
     }
+
+    $ssh->send('exit');             # terminate the connection
+    $ssh->join;                     # wait for the process to terminate
   }
 
 =head1 DESCRIPTION
@@ -36,19 +46,13 @@ use Moo;
 use POSIX qw(:sys_wait_h);
 use Symbol qw(gensym);
 use Types::Standard -types;
+
 use IPC::Simple::Channel;
+use IPC::Simple::Message;
 
 =head1 EXPORTED CONSTANTS
 
 =cut
-
-use constant IPC_STDOUT => 1;
-use constant IPC_STDERR => 2;
-use constant IPC_ERROR  => 3;
-
-use constant STATE_READY    => 0;
-use constant STATE_RUNNING  => 1;
-use constant STATE_STOPPING => 2;
 
 BEGIN{
   extends 'Exporter';
@@ -59,6 +63,10 @@ BEGIN{
     IPC_ERROR
   );
 }
+
+use constant STATE_READY    => 0;
+use constant STATE_RUNNING  => 1;
+use constant STATE_STOPPING => 2;
 
 =head1 METHODS
 
@@ -213,7 +221,14 @@ sub _build_handle {
     on_error => sub{
       my ($handle, $fatal, $msg) = @_;
       debug('recv error type=%d, msg="%s"', $type, $msg);
-      $self->messages->put([$msg, IPC_ERROR]);
+
+      $self->messages->put(
+        IPC::Simple::Message->new(
+          source  => IPC_ERROR,
+          message => $msg,
+        ),
+      );
+
       $self->terminate if $fatal;
     },
 
@@ -225,7 +240,13 @@ sub _build_handle {
         my ($handle, $line) = @_;
         chomp $line;
         debug('recv type=%d, msg="%s"', $type, $line);
-        $self->messages->put([$line, $type]);
+ 
+        $self->messages->put(
+          IPC::Simple::Message->new(
+            source  => $type,
+            message => $line,
+          ),
+        );
       });
     },
   );
