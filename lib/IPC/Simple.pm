@@ -1,6 +1,29 @@
 package IPC::Simple;
 # ABSTRACT: easy, non-blocking IPC
 
+=head1 SYNOPSIS
+
+  use IPC::Simple;
+
+  my $ssh = IPC::Simple->new(
+    cmd  => 'ssh',
+    args => [ $host ],
+  );
+
+  if ($ssh->launch) {
+    $ssh->send('cd $HOME/some/dir');
+    $ssh->send('ls -lah');
+    $ssh->send('exit');
+
+    while (my $line = $ssh->recv) {
+      say $line;
+    }
+  }
+
+=head1 DESCRIPTION
+
+=cut
+
 use strict;
 use warnings;
 
@@ -14,6 +37,10 @@ use POSIX qw(:sys_wait_h);
 use Symbol qw(gensym);
 use Types::Standard -types;
 use IPC::Simple::Channel;
+
+=head1 EXPORTED CONSTANTS
+
+=cut
 
 use constant IPC_STDOUT => 1;
 use constant IPC_STDERR => 2;
@@ -32,6 +59,12 @@ BEGIN{
     IPC_ERROR
   );
 }
+
+=head1 METHODS
+
+=head1 new
+
+=cut
 
 has cmd =>
   is => 'ro',
@@ -104,17 +137,9 @@ sub DEMOLISH {
   $self->join;
 }
 
-sub debug {
-  if ($ENV{IPC_SIMPLE_DEBUG}) {
-    my $msg = sprintf shift, @_;
-    warn "<IPC::Simple> $msg\n";
-  }
-}
+=head1 METHODS
 
-after run_state => sub{
-  my $self = shift;
-  debug('run state changed to %d', @_) if @_;
-};
+=cut
 
 sub is_ready    { $_[0]->run_state == STATE_READY }
 sub is_running  { $_[0]->run_state == STATE_RUNNING }
@@ -234,5 +259,21 @@ sub recv {
   my $self = shift;
   return $self->messages->get;
 }
+
+=head1 DEBUGGING
+
+=cut
+
+sub debug {
+  if ($ENV{IPC_SIMPLE_DEBUG}) {
+    my $msg = sprintf shift, @_;
+    warn "<IPC::Simple> $msg\n";
+  }
+}
+
+after run_state => sub{
+  my $self = shift;
+  debug('run state changed to %d', @_) if @_;
+};
 
 1;

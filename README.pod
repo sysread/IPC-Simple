@@ -10,6 +10,37 @@ IPC::Simple - easy, non-blocking IPC
 
 version 0.01
 
+=head1 SYNOPSIS
+
+  use IPC::Simple;
+
+  my $ssh = IPC::Simple->new(
+    cmd  => 'ssh',
+    args => [ $host ],
+  );
+
+  if ($ssh->launch) {
+    $ssh->send('cd $HOME/some/dir');
+    $ssh->send('ls -lah');
+    $ssh->send('exit');
+
+    while (my $line = $ssh->recv) {
+      say $line;
+    }
+  }
+
+=head1 DESCRIPTION
+
+=head1 EXPORTED CONSTANTS
+
+=head1 METHODS
+
+=head1 new
+
+=head1 METHODS
+
+=head1 DEBUGGING
+
 =head1 AUTHOR
 
 Jeff Ober <sysread@fastmail.fm>
