@@ -114,6 +114,7 @@ immediately.
     my $msg = shift;
 
     if ($msg->stdout) {
+      ...
     }
   });
 
