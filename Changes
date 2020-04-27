@@ -1,4 +1,6 @@
 {{$NEXT}}
+
+0.02 2020-04-27
 -Bugfix: use `eol` setting in reads
 
 0.01 2020-04-27
