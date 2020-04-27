@@ -9,6 +9,11 @@ cache:
   directories:
     - ~/perl5
 
+matrix:
+  include:
+    - perl: 5.30
+      env: COVERAGE=1 # enables coverage+coveralls reporting
+
 perl:
   - "5.30"
   - "5.28"
@@ -17,6 +22,11 @@ perl:
   - "5.22"
   - "5.20"
   - "5.18"
+  - "5.16"
+  - "5.14"
+  - "5.12"
+  - "5.10"
+  - "5.8.9"
 
 before_install:
   - eval $(curl https://travis-perl.github.io/init) --auto --always-upgrade-modules
