@@ -8,6 +8,7 @@ package IPC::Simple;
   my $ssh = IPC::Simple->new(
     cmd  => 'ssh',
     args => [ $host ],
+    eol  => "\n",
   );
 
   if ($ssh->launch) {
@@ -42,7 +43,7 @@ process.
 Creates a new C<IPC::Simple> process object. The process is not immediately
 launched; see L</launch>.
 
-=head2 required attributes
+=head2 constructor arguments
 
 =over
 
@@ -53,6 +54,11 @@ The command to launch in a child process.
 =item args
 
 An array ref of arguments to C<cmd>.
+
+=item eol
+
+The end-of-line character to print at the end of each call to L</send>.
+Defaults to C<"\n">.
 
 =back
 
@@ -176,6 +182,11 @@ has args =>
   is => 'ro',
   isa => ArrayRef[Str],
   default => sub{ [] };
+
+has eol =>
+  is => 'ro',
+  isa => Str,
+  default => "\n";
 
 has run_state =>
   is => 'rw',
@@ -364,8 +375,9 @@ sub join {
 sub send {
   my ($self, $msg) = @_;
   my $fh = $self->fh_in;
+  local $\ = $self->eol;
   local $| = 1;
-  print $fh "$msg\n";
+  print $fh $msg;
 }
 
 sub async {

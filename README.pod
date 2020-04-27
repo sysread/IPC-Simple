@@ -17,6 +17,7 @@ version 0.01
   my $ssh = IPC::Simple->new(
     cmd  => 'ssh',
     args => [ $host ],
+    eol  => "\n",
   );
 
   if ($ssh->launch) {
@@ -51,7 +52,7 @@ process.
 Creates a new C<IPC::Simple> process object. The process is not immediately
 launched; see L</launch>.
 
-=head2 required attributes
+=head2 constructor arguments
 
 =over
 
@@ -62,6 +63,11 @@ The command to launch in a child process.
 =item args
 
 An array ref of arguments to C<cmd>.
+
+=item eol
+
+The end-of-line character to print at the end of each call to L</send>.
+Defaults to C<"\n">.
 
 =back
 
@@ -107,6 +113,21 @@ abnormal termination).
 
 Each message returned by C<recv> is an object overloaded so that it can be
 treated as a string as well as providing the following methods:
+
+=head2 async
+
+Schedules a callback for the next line of input to be received, returning
+immediately.
+
+  $proc->async(sub{
+    my $msg = shift;
+
+    if ($msg->stdout) {
+    }
+  });
+
+This is done with L<AnyEvent/CONDITION-VARIABLES>, so the same caveats about
+races and dead locks apply. It is up to the caller to manage their event loop.
 
 =over
 
