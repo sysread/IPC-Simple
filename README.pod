@@ -4,7 +4,7 @@
 
 =head1 NAME
 
-IPC::Simple - easy, non-blocking IPC
+IPC::Simple - simple, non-blocking IPC
 
 =head1 VERSION
 
@@ -41,7 +41,8 @@ version 0.01
 
 =head1 DESCRIPTION
 
-Something something something
+Provides a simplified interface for managing and kibbitzing with a child
+process.
 
 =head1 METHODS
 
@@ -56,7 +57,11 @@ launched; see L</launch>.
 
 =item cmd
 
+The command to launch in a child process.
+
 =item args
+
+An array ref of arguments to C<cmd>.
 
 =back
 

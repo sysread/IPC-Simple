@@ -53,6 +53,11 @@ sub put {
 
 sub get {
   my $self = shift;
+  $self->async->recv;
+}
+
+sub async {
+  my $self = shift;
 
   return shift @{ $self->buffer }
     if $self->is_shutdown;
@@ -62,7 +67,7 @@ sub get {
 
   $self->flush;
 
-  return $cv->recv;
+  return $cv;
 }
 
 sub flush {

@@ -1,5 +1,5 @@
 package IPC::Simple;
-# ABSTRACT: easy, non-blocking IPC
+# ABSTRACT: simple, non-blocking IPC
 
 =head1 SYNOPSIS
 
@@ -32,7 +32,8 @@ package IPC::Simple;
 
 =head1 DESCRIPTION
 
-Something something something
+Provides a simplified interface for managing and kibbitzing with a child
+process.
 
 =head1 METHODS
 
@@ -47,7 +48,11 @@ launched; see L</launch>.
 
 =item cmd
 
+The command to launch in a child process.
+
 =item args
+
+An array ref of arguments to C<cmd>.
 
 =back
 
@@ -109,6 +114,8 @@ True when the message came from the child process' C<STDERR>.
 True when the message is a sub-process communication error.
 
 =back
+
+=head1 DEBUGGING
 
 =cut
 
@@ -205,7 +212,10 @@ has exit_status =>
 has messages =>
   is => 'rw',
   isa => InstanceOf['IPC::Simple::Channel'],
-  init_arg => undef;
+  init_arg => undef,
+  handles => {
+    recv => 'get',
+  };
 
 sub DEMOLISH {
   my $self = shift;
@@ -304,7 +314,7 @@ sub _build_handle {
         my ($handle, $line) = @_;
         chomp $line;
         debug('recv type=%d, msg="%s"', $type, $line);
- 
+
         $self->messages->put(
           IPC::Simple::Message->new(
             source  => $type,
@@ -340,14 +350,12 @@ sub send {
   print $fh "$msg\n";
 }
 
-sub recv {
-  my $self = shift;
-  return $self->messages->get;
+sub async {
+  my ($self, $cb) = @_;
+  my $cv = $self->messages->async;
+  $cv->callback(sub{ $cb->( $cv->recv ) });
+  return;
 }
-
-=head1 DEBUGGING
-
-=cut
 
 sub debug {
   if ($ENV{IPC_SIMPLE_DEBUG}) {
