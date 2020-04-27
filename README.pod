@@ -126,6 +126,9 @@ True when the message is a sub-process communication error.
 
 =head1 DEBUGGING
 
+C<IPC::Simple> will emit highly verbose messages to C<STDERR> if the
+environment variable C<IPC_SIMPLE_DEBUG> is set to a true value.
+
 =head1 AUTHOR
 
 Jeff Ober <sysread@fastmail.fm>
