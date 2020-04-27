@@ -1,4 +1,5 @@
 {{$NEXT}}
+-Bugfix: use `eol` setting in reads
 
 0.01 2020-04-27
 -Initial release

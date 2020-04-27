@@ -340,7 +340,7 @@ sub _build_handle {
       my ($handle) = @_;
       debug('read event type=%d', $type);
 
-      $handle->push_read(line => sub{
+      $handle->push_read(line => $self->eol, sub{
         my ($handle, $line) = @_;
         chomp $line;
         debug('recv type=%d, msg="%s"', $type, $line);
