@@ -45,8 +45,8 @@ has message =>
   isa => Str,
   required => 1;
 
-sub stdout { $_[0]->source == IPC_STDOUT }
-sub stderr { $_[0]->source == IPC_STDERR }
-sub error  { $_[0]->source == IPC_ERROR }
+sub stdout { $_[0] == IPC_STDOUT }
+sub stderr { $_[0] == IPC_STDERR }
+sub error  { $_[0] == IPC_ERROR }
 
 1;

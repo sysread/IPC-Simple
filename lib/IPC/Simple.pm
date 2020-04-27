@@ -15,13 +15,13 @@ package IPC::Simple;
     $ssh->send('echo');             # signal our loop that the listing is done
 
     while (my $msg = $ssh->recv) {  # echo's output will be an empty string
-      if ($msg == IPC_ERROR) {      # I/O error
+      if ($msg->error) {            # I/O error
         croak $msg;
       }
-      elsif ($msg == IPC_STDERR) {  # output to STDERR
+      elsif ($msg->stderr) {        # output to STDERR
         warn $msg;
       }
-      elsif ($msg == IPC_STDOUT) {  # output to STDOUT
+      elsif ($msg->stdout) {        # output to STDOUT
         say $msg;
       }
     }
@@ -31,6 +31,84 @@ package IPC::Simple;
   }
 
 =head1 DESCRIPTION
+
+Something something something
+
+=head1 METHODS
+
+=head1 new
+
+Creates a new C<IPC::Simple> process object. The process is not immediately
+launched; see L</launch>.
+
+=head2 required attributes
+
+=over
+
+=item cmd
+
+=item args
+
+=back
+
+=head2 pid
+
+Once launched, returns the pid of the child process.
+
+=head2 exit_status
+
+Once a child process exits, this is set to the exit status (C<$?>) of the child
+process.
+
+=head2 exit_code
+
+Once a child process has terminated, this is set to the exit code of the child
+process.
+
+=head2 launch
+
+Starts the child process. Returns true on success, croaks on failure to launch
+the process.
+
+=head2 terminate
+
+Sends the child process a `SIGTERM`. Returns immediately. Use L</join> to wait
+for the process to finish.
+
+=head2 join
+
+Blocks until the child process has exited.
+
+=head2 send
+
+Sends a string of text to the child process. The string will be appended with a
+single newline.
+
+=head2 recv
+
+Waits for and returns the next line of output from the process, which may be
+from C<STDOUT>, from C<STDERR>, or it could be an error message resulting from
+an I/O error while communicating with the process (e.g. a C<SIGPIPE> or
+abnormal termination).
+
+Each message returned by C<recv> is an object overloaded so that it can be
+treated as a string as well as providing the following methods:
+
+=over
+
+=item stdout
+
+True when the message came from the child process' C<STDOUT>.
+
+=item stderr
+
+True when the message came from the child process' C<STDERR>.
+
+=item error
+
+True when the message is a sub-process communication error.
+
+=back
 
 =cut
 
@@ -50,10 +128,6 @@ use Types::Standard -types;
 use IPC::Simple::Channel;
 use IPC::Simple::Message;
 
-=head1 EXPORTED CONSTANTS
-
-=cut
-
 BEGIN{
   extends 'Exporter';
 
@@ -67,12 +141,6 @@ BEGIN{
 use constant STATE_READY    => 0;
 use constant STATE_RUNNING  => 1;
 use constant STATE_STOPPING => 2;
-
-=head1 METHODS
-
-=head1 new
-
-=cut
 
 has cmd =>
   is => 'ro',
@@ -144,10 +212,6 @@ sub DEMOLISH {
   $self->terminate;
   $self->join;
 }
-
-=head1 METHODS
-
-=cut
 
 sub is_ready    { $_[0]->run_state == STATE_READY }
 sub is_running  { $_[0]->run_state == STATE_RUNNING }

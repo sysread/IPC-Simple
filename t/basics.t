@@ -25,14 +25,17 @@ ok $proc->is_running, 'is_running is true after launch';
 
 ok $proc->send('hello world'), 'send';
 
-my $msgs = [];
-push @$msgs, $proc->recv;
-push @$msgs, $proc->recv;
+# can't guarantee which stream will trigger a read event first, so we can test
+# for existence of the messages in a list with grep
+my $msgs = [
+  $proc->recv,
+  $proc->recv,
+];
 
 ok((grep{ $_ eq 'starting' } @$msgs), 'recv: str overload');
 ok((grep{ $_ eq 'hello world' } @$msgs), 'recv: str overload');
-ok((grep{ $_ == IPC_STDOUT } @$msgs), 'recv: == overload');
-ok((grep{ $_ == IPC_STDERR } @$msgs), 'recv: == overload');
+ok((grep{ $_->stdout } @$msgs), 'msg->stdout');
+ok((grep{ $_->stderr } @$msgs), 'msg->stderr');
 
 $proc->terminate;
 ok $proc->is_stopping, 'is_stopping';
@@ -42,6 +45,7 @@ ok $proc->is_ready, 'is_ready';
 
 is $proc->exit_code, 0, 'exit_code';
 
+# clear timeout so it won't go off
 undef $timeout;
 
 done_testing;
