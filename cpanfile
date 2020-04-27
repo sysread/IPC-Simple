@@ -6,10 +6,10 @@ requires 'Fcntl'            => '0';
 requires 'IPC::Open3'       => '0';
 requires 'Moo'              => '0';
 requires 'POSIX'            => '0';
-requires 'Scalar::Util'     => '0';
 requires 'Symbol'           => '0';
 requires 'Types::Standard'  => '0';
 
 on test => sub{
-  requires 'Test::More' => '0';
+  requires 'Test2::V0'             => '0';
+  requires 'Test2::Tools::Compare' => '0';
 };
