@@ -16,8 +16,9 @@ ok my $proc = IPC::Simple->new(
 my $timeout = AnyEvent->timer(
   after => 10,
   cb => sub{
+    diag 'timeout reached';
     $proc->terminate;
-    confess 'timeout reached';
+    die 'timeout reached';
   },
 );
 
