@@ -5,6 +5,7 @@ use Test::More;
 use AnyEvent;
 use Carp;
 use IPC::Simple;
+use Guard qw(scope_guard);
 
 ok my $proc = IPC::Simple->new(
   cmd  => 'perl',
@@ -20,11 +21,14 @@ my $timeout = AnyEvent->timer(
   },
 );
 
+scope_guard{
+  $proc->terminate; # send kill signal
+  $proc->join;      # wait for process to complete
+  undef $timeout;   # clear timeout so it won't go off
+};
+
 ok !$proc->is_running, 'is_running is initially false';
 ok $proc->launch, 'launch';
 ok $proc->is_running, 'is_running is true after launch';
-
-# clear timeout so it won't go off
-undef $timeout;
 
 done_testing;

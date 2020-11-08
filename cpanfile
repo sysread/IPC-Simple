@@ -8,6 +8,7 @@ requires 'Symbol'           => '0';
 requires 'Types::Standard'  => '0';
 
 on test => sub{
-  requires 'Test2::V0' => '0';
-  requires 'Test::Pod' => '0';
+  requires 'Test::More' => '0';
+  requires 'Test::Pod'  => '0';
+  requires 'Guard'      => '0';
 };
