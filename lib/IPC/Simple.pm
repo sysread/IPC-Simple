@@ -295,12 +295,17 @@ sub _build_handle {
   # set non-blocking
   AnyEvent::fh_unblock($fh);
 
-  return AnyEvent::Handle->new(
+  my $handle = AnyEvent::Handle->new(
     fh       => $fh,
     on_eof   => sub{ warn "EOF"; $self->terminate },
     on_error => sub{ warn "ERROR"; $self->_on_error($type, @_) },
     on_read  => sub{ warn "READ"; $self->_on_read($type, @_) },
   );
+
+  # queue an initial read to ensure the event loop is watching for reads
+  $self->_push_read($handle, $type);
+
+  return $handle;
 }
 
 sub _on_error {
@@ -317,9 +322,23 @@ sub _on_error {
   $self->terminate if $fatal;
 }
 
+sub _on_exit {
+  my ($self, $status) = @_;
+  $self->run_state(STATE_READY);
+  $self->exit_status($status || 0);
+  $self->exit_code($self->exit_status >> 8);
+  $self->messages->shutdown;
+  debug('child (pid %d) exited with status %d (exit code: %d)', $self->pid, $self->exit_status, $self->exit_code);
+}
+
 sub _on_read {
   my ($self, $type, $handle) = @_;
   debug('read event type=%d', $type);
+  $self->_push_read($handle, $type);
+}
+
+sub _push_read {
+  my ($self, $handle, $type) = @_;
 
   $handle->push_read(line => $self->eol, sub{
     my ($handle, $line) = @_;
@@ -333,15 +352,6 @@ sub _on_read {
       ),
     );
   });
-}
-
-sub _on_exit {
-  my ($self, $status) = @_;
-  $self->run_state(STATE_READY);
-  $self->exit_status($status || 0);
-  $self->exit_code($self->exit_status >> 8);
-  $self->messages->shutdown;
-  debug('child (pid %d) exited with status %d (exit code: %d)', $self->pid, $self->exit_status, $self->exit_code);
 }
 
 sub terminate {
