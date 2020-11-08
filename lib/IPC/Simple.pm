@@ -147,8 +147,8 @@ environment variable C<IPC_SIMPLE_DEBUG> is set to a true value.
 use strict;
 use warnings;
 
-use AnyEvent::Handle;
 use AnyEvent;
+use AnyEvent::Handle;
 use Carp;
 use Fcntl;
 use IPC::Open3 qw(open3);
@@ -319,41 +319,43 @@ sub _build_handle {
   fcntl $fh, F_SETFL, $flags | O_NONBLOCK;
 
   return AnyEvent::Handle->new(
-    fh => $fh,
-    on_eof => sub{ $self->terminate },
-
-    on_error => sub{
-      my ($handle, $fatal, $msg) = @_;
-      debug('recv error type=%d, msg="%s"', $type, $msg);
-
-      $self->messages->put(
-        IPC::Simple::Message->new(
-          source  => IPC_ERROR,
-          message => $msg,
-        ),
-      );
-
-      $self->terminate if $fatal;
-    },
-
-    on_read => sub{
-      my ($handle) = @_;
-      debug('read event type=%d', $type);
-
-      $handle->push_read(line => $self->eol, sub{
-        my ($handle, $line) = @_;
-        chomp $line;
-        debug('recv type=%d, msg="%s"', $type, $line);
-
-        $self->messages->put(
-          IPC::Simple::Message->new(
-            source  => $type,
-            message => $line,
-          ),
-        );
-      });
-    },
+    fh       => $fh,
+    on_eof   => sub{ $self->terminate },
+    on_error => sub{ $self->_on_error($type, @_) },
+    on_read  => sub{ $self->_on_read($type, @_) },
   );
+}
+
+sub _on_error {
+  my ($self, $type, $handle, $fatal, $msg) = @_;
+  debug('recv error type=%d, msg="%s"', $type, $msg);
+
+  $self->messages->put(
+    IPC::Simple::Message->new(
+      source  => IPC_ERROR,
+      message => $msg,
+    ),
+  );
+
+  $self->terminate if $fatal;
+}
+
+sub _on_read {
+  my ($self, $type, $handle) = @_;
+  debug('read event type=%d', $type);
+
+  $handle->push_read(line => $self->eol, sub{
+    my ($handle, $line) = @_;
+    chomp $line;
+    debug('recv type=%d, msg="%s"', $type, $line);
+
+    $self->messages->put(
+      IPC::Simple::Message->new(
+        source  => $type,
+        message => $line,
+      ),
+    );
+  });
 }
 
 sub terminate {
