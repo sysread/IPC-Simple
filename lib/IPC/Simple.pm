@@ -150,10 +150,8 @@ use warnings;
 use AnyEvent;
 use AnyEvent::Handle;
 use Carp;
-use Fcntl;
 use IPC::Open3 qw(open3);
 use Moo;
-use POSIX qw(:sys_wait_h);
 use Symbol qw(gensym);
 use Types::Standard -types;
 
@@ -315,8 +313,7 @@ sub _build_handle {
   my ($self, $fh, $type) = @_;
 
   # set non-blocking
-  my $flags = fcntl $fh, F_GETFL, 0;
-  fcntl $fh, F_SETFL, $flags | O_NONBLOCK;
+  AnyEvent::fh_unblock($fh);
 
   return AnyEvent::Handle->new(
     fh       => $fh,
