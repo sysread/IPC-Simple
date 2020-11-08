@@ -4,6 +4,7 @@ use warnings;
 use Test::More;
 use AnyEvent;
 use Carp;
+use Guard qw(scope_guard);
 use IPC::Simple;
 
 ok my $proc = IPC::Simple->new(
@@ -20,6 +21,12 @@ my $timeout = AnyEvent->timer(
   },
 );
 
+scope_guard{
+  $proc->terminate; # send kill signal
+  $proc->join;      # wait for process to complete
+  undef $timeout;   # clear timeout so it won't go off
+};
+
 ok $proc->launch, 'launch';
 ok $proc->send('hello world'), 'send';
 
@@ -34,9 +41,5 @@ ok((grep{ $_ eq 'starting' } @$msgs), 'recv: str overload');
 ok((grep{ $_ eq 'hello world' } @$msgs), 'recv: str overload');
 ok((grep{ $_->stdout } @$msgs), 'msg->stdout');
 ok((grep{ $_->stderr } @$msgs), 'msg->stderr');
-
-$proc->terminate; # send kill signal
-$proc->join;      # wait for process to complete
-undef $timeout;   # clear timeout so it won't go off
 
 done_testing;
