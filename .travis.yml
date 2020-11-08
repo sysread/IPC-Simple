@@ -9,6 +9,8 @@ cache:
   directories:
     - ~/perl5
 
+env: PERL_ANYEVENT_MODEL=Perl
+
 matrix:
   include:
     - perl: 5.30
