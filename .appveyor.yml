@@ -18,4 +18,5 @@ install:
   - dzil listdeps --missing | cpanm -nq
 
 test_script:
-  - dzil test
+  - set IPC_SIMPLE_DEBUG=1
+  - dzil test -v
