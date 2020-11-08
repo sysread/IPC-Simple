@@ -395,7 +395,8 @@ sub async {
 sub debug {
   if ($ENV{IPC_SIMPLE_DEBUG}) {
     my $msg = sprintf shift, @_;
-    warn "<IPC::Simple> $msg\n";
+    my ($pkg, $file, $line) = caller;
+    warn "<$pkg : $line> $msg\n";
   }
 }
 
