@@ -360,11 +360,17 @@ sub terminate {
 
 sub join {
   my $self = shift;
+
+  if ($self->state == STATE_READY) {
+    return;
+  }
+
   my $done = AnyEvent->condvar;
   my $status;
 
   my $check; $check = AnyEvent->timer(interval => 0.1, cb => sub{
     my $result = waitpid $self->pid, WNOHANG;
+
     if ($result == $self->pid || $result == -1) {
       $status = $?;
       $done->send;
