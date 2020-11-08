@@ -375,9 +375,7 @@ sub join {
       $status = $?;
       $done->send;
       undef $check;
-debug('process completed!');
     }
-debug('check process %d: result=%d, status=%s', $self->pid, $result, $status // 'undef');
   });
 
   debug('waiting for process to exit, pid %d', $self->pid);
@@ -392,7 +390,15 @@ sub send {
   local $\ = $self->eol;
   local $| = 1;
   print $fh $msg;
+  debug('sent "%s"', $msg);
 }
+
+around recv => sub{
+  my $orig = shift;
+  my $self = shift;
+  debug('waiting on message');
+  $self->$orig();
+};
 
 sub async {
   my ($self, $cb) = @_;
