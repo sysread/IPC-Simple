@@ -158,6 +158,7 @@ use Types::Standard -types;
 
 use IPC::Simple::Channel;
 use IPC::Simple::Message;
+use IPC::Simple::Util;
 
 BEGIN{
   extends 'Exporter';
@@ -296,9 +297,9 @@ sub _build_handle {
 
   return AnyEvent::Handle->new(
     fh       => $fh,
-    on_eof   => sub{ $self->terminate },
-    on_error => sub{ $self->_on_error($type, @_) },
-    on_read  => sub{ $self->_on_read($type, @_) },
+    on_eof   => sub{ warn "EOF"; $self->terminate },
+    on_error => sub{ warn "ERROR"; $self->_on_error($type, @_) },
+    on_read  => sub{ warn "READ"; $self->_on_read($type, @_) },
   );
 }
 
@@ -405,14 +406,6 @@ sub async {
   my $cv = $self->messages->async;
   $cv->cb(sub{ $cb->( $cv->recv ) });
   return;
-}
-
-sub debug {
-  if ($ENV{IPC_SIMPLE_DEBUG}) {
-    my $msg = sprintf shift, @_;
-    my ($pkg, $file, $line) = caller;
-    warn "<$pkg : $line> $msg\n";
-  }
 }
 
 after run_state => sub{
