@@ -361,7 +361,7 @@ sub terminate {
 sub join {
   my $self = shift;
 
-  if ($self->state == STATE_READY) {
+  if ($self->run_state == STATE_READY) {
     return;
   }
 
@@ -375,6 +375,7 @@ sub join {
       $status = $?;
       $done->send;
       undef $check;
+debug('process completed!');
     }
 debug('check process %d: result=%d, status=%s', $self->pid, $result, $status // 'undef');
   });
