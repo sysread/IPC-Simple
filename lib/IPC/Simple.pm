@@ -272,6 +272,8 @@ sub launch {
     @{$self->args},
   ) or croak $!;
 
+  debug('process launched with pid %d', $pid);
+
   $self->run_state(STATE_RUNNING);
   $self->exit_status(undef);
   $self->exit_code(undef);
@@ -370,6 +372,7 @@ sub join {
       $done->send;
       undef $check;
     }
+debug('check process %d: %d', $self->pid, $result);
   });
 
   debug('waiting for process to exit, pid %d', $self->pid);
