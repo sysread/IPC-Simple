@@ -147,8 +147,8 @@ environment variable C<IPC_SIMPLE_DEBUG> is set to a true value.
 use strict;
 use warnings;
 
-use AnyEvent;
 use AnyEvent::Handle;
+use AnyEvent;
 use Carp;
 use IPC::Open3 qw(open3);
 use Moo;
