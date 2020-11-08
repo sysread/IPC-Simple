@@ -297,9 +297,9 @@ sub _build_handle {
 
   my $handle = AnyEvent::Handle->new(
     fh       => $fh,
-    on_eof   => sub{ warn "EOF"; $self->terminate },
-    on_error => sub{ warn "ERROR"; $self->_on_error($type, @_) },
-    on_read  => sub{ warn "READ"; $self->_on_read($type, @_) },
+    on_eof   => sub{ $self->terminate },
+    on_error => sub{ $self->_on_error($type, @_) },
+    on_read  => sub{ $self->_on_read($type, @_) },
   );
 
   # queue an initial read to ensure the event loop is watching for reads
