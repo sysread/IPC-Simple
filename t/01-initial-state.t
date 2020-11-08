@@ -14,7 +14,7 @@ ok my $proc = IPC::Simple->new(
 
 # Start a timer to ensure a bug doesn't cause us to run indefinitely
 my $timeout = AnyEvent->timer(
-  after => 30,
+  after => 10,
   cb => sub{
     $proc->terminate;
     confess 'timeout reached';
