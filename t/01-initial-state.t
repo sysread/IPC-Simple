@@ -4,6 +4,7 @@ use warnings;
 use Test::More;
 use AnyEvent;
 use Carp;
+use Guard qw(scope_guard);
 use IPC::Simple;
 
 ok my $proc = IPC::Simple->new(
@@ -19,6 +20,12 @@ my $timeout = AnyEvent->timer(
     confess 'timeout reached';
   },
 );
+
+scope_guard{
+  $proc->terminate; # send kill signal
+  $proc->join;      # wait for process to complete
+  undef $timeout;   # clear timeout so it won't go off
+};
 
 ok !$proc->is_running, 'is_running is initially false';
 ok $proc->launch, 'launch';

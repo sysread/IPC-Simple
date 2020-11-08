@@ -152,6 +152,7 @@ use AnyEvent;
 use Carp;
 use IPC::Open3 qw(open3);
 use Moo;
+use POSIX qw(:sys_wait_h);
 use Symbol qw(gensym);
 use Types::Standard -types;
 
@@ -197,11 +198,6 @@ has pid =>
   isa => Num,
   init_arg => undef;
 
-has proc_monitor =>
-  is => 'rw',
-  init_arg => undef,
-  clearer => 1;
-
 has fh_in =>
   is => 'rw',
   isa => FileHandle,
@@ -227,12 +223,12 @@ has handle_err =>
   isa => InstanceOf['AnyEvent::Handle'],
   init_arg => undef;
 
-has cv_exited =>
+has exit_status =>
   is => 'rw',
-  isa => InstanceOf['AnyEvent::CondVar'],
+  isa => Maybe[Int],
   init_arg => undef;
 
-has exit_status =>
+has exit_code =>
   is => 'rw',
   isa => Maybe[Int],
   init_arg => undef;
@@ -254,12 +250,6 @@ sub DEMOLISH {
 sub is_ready    { $_[0]->run_state == STATE_READY }
 sub is_running  { $_[0]->run_state == STATE_RUNNING }
 sub is_stopping { $_[0]->run_state == STATE_STOPPING }
-
-sub exit_code {
-  my $self = shift;
-  return unless defined $self->exit_status;
-  return $self->exit_status >> 8;
-}
 
 sub launch {
   my $self = shift;
@@ -283,6 +273,8 @@ sub launch {
   ) or croak $!;
 
   $self->run_state(STATE_RUNNING);
+  $self->exit_status(undef);
+  $self->exit_code(undef);
   $self->pid($pid);
   $self->fh_in($in);
   $self->fh_out($out);
@@ -290,17 +282,6 @@ sub launch {
   $self->messages(IPC::Simple::Channel->new);
   $self->handle_err($self->_build_handle($err, IPC_STDERR));
   $self->handle_out($self->_build_handle($out, IPC_STDOUT));
-
-  unless (AnyEvent::WIN32) {
-    $self->cv_exited(AnyEvent->condvar);
-
-    $self->proc_monitor(
-      AnyEvent->child($pid, sub{
-        my ($pid, $status) = @_;
-        $self->_on_exit($status);
-      })
-    );
-  }
 
   return 1;
 }
@@ -353,16 +334,11 @@ sub _on_read {
 
 sub _on_exit {
   my ($self, $status) = @_;
-  debug('child (pid %d) exited with status %d (exit code: %d)', $self->pid, $status, $status >> 8);
   $self->run_state(STATE_READY);
-  $self->exit_status($status);
+  $self->exit_status($status || 0);
+  $self->exit_code($self->exit_status >> 8);
   $self->messages->shutdown;
-
-  unless (AnyEvent::WIN32) {
-    $self->cv_exited->send($status);
-  }
-
-  $self->clear_proc_monitor;
+  debug('child (pid %d) exited with status %d (exit code: %d)', $self->pid, $self->exit_status, $self->exit_code);
 }
 
 sub terminate {
@@ -371,7 +347,7 @@ sub terminate {
     $self->run_state(STATE_STOPPING);
 
     if (AnyEvent::WIN32) {
-      debug('sending signal 9 to pid %d', $self->pid);
+      debug('sending KILL to pid %d', $self->pid);
       kill 'KILL', $self->pid;
     } else {
       debug('sending TERM to pid %d', $self->pid);
@@ -382,16 +358,24 @@ sub terminate {
 
 sub join {
   my $self = shift;
+  my $done = AnyEvent->condvar;
+  my $status;
 
-  if (AnyEvent::WIN32) {
-    waitpid $self->pid, 0;
-    my $status = $?;
-    $self->_on_exit($status);
-  }
-  else {
-    debug('waiting for process to exit, pid %d', $self->pid);
-    $self->cv_exited->recv;
-  }
+  my $check; $check = AnyEvent->timer(interval => 0.1, cb => sub{
+    my $result = waitpid $self->pid, WNOHANG;
+    if ($result == $self->pid) {
+      $status = $?;
+    }
+    elsif ($result == -1) {
+      $done->send;
+      undef $check;
+    }
+  });
+
+  debug('waiting for process to exit, pid %d', $self->pid);
+
+  $done->recv;
+  $self->_on_exit($status);
 }
 
 sub send {

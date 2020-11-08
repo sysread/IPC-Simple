@@ -4,8 +4,8 @@ use warnings;
 use Test::More;
 use AnyEvent;
 use Carp;
-use IPC::Simple;
 use Guard qw(scope_guard);
+use IPC::Simple;
 
 ok my $proc = IPC::Simple->new(
   cmd  => 'perl',
