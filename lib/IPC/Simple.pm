@@ -370,7 +370,7 @@ sub join {
       $done->send;
       undef $check;
     }
-debug('check process %d: %d', $self->pid, $result);
+debug('check process %d: result=%d, status=%s', $self->pid, $result, $status // 'undef');
   });
 
   debug('waiting for process to exit, pid %d', $self->pid);
