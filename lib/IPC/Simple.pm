@@ -362,7 +362,7 @@ sub terminate {
 
     if (AnyEvent::WIN32) {
       debug('sending signal 9 to pid %d', $self->pid);
-      kill 9, $self->pid;
+      kill 'KILL', $self->pid;
     } else {
       debug('sending TERM to pid %d', $self->pid);
       kill 'TERM', $self->pid;
