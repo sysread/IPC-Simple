@@ -371,10 +371,22 @@ sub terminate {
 
 sub join {
   my $self = shift;
-  if ($self->cv_exited) {
-    debug('waiting for process to exit, pid %d', $self->pid);
-    $self->cv_exited->recv;
-  }
+
+  waitpid $self->pid, 0;
+  my $status = $?;
+
+  debug('child (pid %d) exited with status %d (exit code: %d)', $self->pid, $status, $status >> 8);
+  $self->run_state(STATE_READY);
+  $self->exit_status($status);
+  $self->messages->shutdown;
+  $self->cv_exited->send($status);
+  $self->clear_proc_monitor;
+
+
+#  if ($self->cv_exited) {
+#    debug('waiting for process to exit, pid %d', $self->pid);
+#    $self->cv_exited->recv;
+#  }
 }
 
 sub send {
