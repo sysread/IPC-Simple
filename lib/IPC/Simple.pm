@@ -360,7 +360,12 @@ sub terminate {
   if ($self->is_running) {
     debug('sending TERM to pid %d', $self->pid);
     $self->run_state(STATE_STOPPING);
-    kill 'TERM', $self->pid;
+
+    if (AnyEvent::WIN32) {
+      kill 9, $self->pid;
+    } else {
+      kill 'TERM', $self->pid;
+    }
   }
 }
 
