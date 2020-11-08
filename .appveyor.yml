@@ -13,10 +13,12 @@ install:
   - if not exist "C:\strawberry" cinst strawberryperl
   - set PATH=C:\strawberry\perl\bin;C:\strawberry\perl\site\bin;C:\strawberry\c\bin;%PATH%
   - cd C:\projects\%APPVEYOR_PROJECT_NAME%
-  - cpanm -n Dist::Zilla
-  - dzil authordeps --missing | cpanm -nq
-  - dzil listdeps --missing | cpanm -nq
+  - cpanm --installdeps . -n
+#  - cpanm -n Dist::Zilla
+#  - dzil authordeps --missing | cpanm -nq
+#  - dzil listdeps --missing | cpanm -nq
 
 test_script:
   - set IPC_SIMPLE_DEBUG=1
-  - dzil test -v
+  - prove -lrv t/
+#  - dzil test -v
