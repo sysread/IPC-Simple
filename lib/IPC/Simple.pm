@@ -358,12 +358,13 @@ sub _on_read {
 sub terminate {
   my $self = shift;
   if ($self->is_running) {
-    debug('sending TERM to pid %d', $self->pid);
     $self->run_state(STATE_STOPPING);
 
     if (AnyEvent::WIN32) {
+      debug('sending signal 9 to pid %d', $self->pid);
       kill 9, $self->pid;
     } else {
+      debug('sending TERM to pid %d', $self->pid);
       kill 'TERM', $self->pid;
     }
   }
