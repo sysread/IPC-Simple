@@ -62,7 +62,7 @@ sub async {
   return shift @{ $self->buffer }
     if $self->is_shutdown;
 
-  my $cv = AE::cv;
+  my $cv = AnyEvent->condvar;
   push @{ $self->waiters }, $cv;
 
   $self->flush;

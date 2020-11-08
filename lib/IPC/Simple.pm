@@ -282,10 +282,7 @@ sub launch {
     @{$self->args},
   ) or croak $!;
 
-  my $cv = AE::cv;
-
   $self->run_state(STATE_RUNNING);
-  $self->cv_exited($cv);
   $self->pid($pid);
   $self->fh_in($in);
   $self->fh_out($out);
@@ -294,17 +291,16 @@ sub launch {
   $self->handle_err($self->_build_handle($err, IPC_STDERR));
   $self->handle_out($self->_build_handle($out, IPC_STDOUT));
 
-  $self->proc_monitor(
-    AE::child($pid, sub{
-      my ($pid, $status) = @_;
-      debug('child (pid %d) exited with status %d (exit code: %d)', $pid, $status, $status >> 8);
-      $self->run_state(STATE_READY);
-      $self->exit_status($status);
-      $self->messages->shutdown;
-      $cv->send($status);
-      $self->clear_proc_monitor;
-    })
-  );
+  unless (AnyEvent::WIN32) {
+    $self->cv_exited(AnyEvent->condvar);
+
+    $self->proc_monitor(
+      AnyEvent->child($pid, sub{
+        my ($pid, $status) = @_;
+        $self->_on_exit($status);
+      })
+    );
+  }
 
   return 1;
 }
@@ -355,6 +351,20 @@ sub _on_read {
   });
 }
 
+sub _on_exit {
+  my ($self, $status) = @_;
+  debug('child (pid %d) exited with status %d (exit code: %d)', $self->pid, $status, $status >> 8);
+  $self->run_state(STATE_READY);
+  $self->exit_status($status);
+  $self->messages->shutdown;
+
+  unless (AnyEvent::WIN32) {
+    $self->cv_exited->send($status);
+  }
+
+  $self->clear_proc_monitor;
+}
+
 sub terminate {
   my $self = shift;
   if ($self->is_running) {
@@ -373,21 +383,15 @@ sub terminate {
 sub join {
   my $self = shift;
 
-  waitpid $self->pid, 0;
-  my $status = $?;
-
-  debug('child (pid %d) exited with status %d (exit code: %d)', $self->pid, $status, $status >> 8);
-  $self->run_state(STATE_READY);
-  $self->exit_status($status);
-  $self->messages->shutdown;
-  $self->cv_exited->send($status);
-  $self->clear_proc_monitor;
-
-
-#  if ($self->cv_exited) {
-#    debug('waiting for process to exit, pid %d', $self->pid);
-#    $self->cv_exited->recv;
-#  }
+  if (AnyEvent::WIN32) {
+    waitpid $self->pid, 0;
+    my $status = $?;
+    $self->_on_exit($status);
+  }
+  else {
+    debug('waiting for process to exit, pid %d', $self->pid);
+    $self->cv_exited->recv;
+  }
 }
 
 sub send {
