@@ -365,10 +365,8 @@ sub join {
 
   my $check; $check = AnyEvent->timer(interval => 0.1, cb => sub{
     my $result = waitpid $self->pid, WNOHANG;
-    if ($result == $self->pid) {
+    if ($result == $self->pid || $result == -1) {
       $status = $?;
-    }
-    elsif ($result == -1) {
       $done->send;
       undef $check;
     }
