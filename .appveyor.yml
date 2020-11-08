@@ -20,5 +20,5 @@ install:
 
 test_script:
   - set IPC_SIMPLE_DEBUG=1
-  - prove -lrv t/
+  - prove -lmvr t/
 #  - dzil test -v
