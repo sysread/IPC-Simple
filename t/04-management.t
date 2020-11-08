@@ -17,6 +17,7 @@ my $timeout = AnyEvent->timer(
   after => 30,
   cb => sub{
     $proc->terminate;
+    $proc->join;
     confess 'timeout reached';
   },
 );

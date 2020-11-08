@@ -2,6 +2,8 @@ use strict;
 use warnings;
 
 use Test::More;
+use AnyEvent;
+use Carp;
 use IPC::Simple;
 use Guard qw(scope_guard);
 
@@ -10,9 +12,20 @@ ok my $proc = IPC::Simple->new(
   args => ['-e', 'local $|=1; while (my $line = <STDIN>) { print("$line") }'],
 ), 'ctor';
 
+# Start a timer to ensure a bug doesn't cause us to run indefinitely
+my $timeout = AnyEvent->timer(
+  after => 30,
+  cb => sub{
+    $proc->terminate;
+    $proc->join;
+    confess 'timeout reached';
+  },
+);
+
 scope_guard{
   $proc->terminate; # send kill signal
   $proc->join;      # wait for process to complete
+  undef $timeout;   # clear timeout so it won't go off
 };
 
 ok !$proc->is_running, 'is_running is initially false';
