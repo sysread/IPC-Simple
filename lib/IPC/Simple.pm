@@ -286,6 +286,15 @@ sub launch {
   $self->handle_err($self->_build_handle($err, IPC_STDERR));
   $self->handle_out($self->_build_handle($out, IPC_STDOUT));
 
+$self->{debug_proc} = AnyEvent->timer(after => 0.1, interval => 0.5, cb => sub{
+  my $waitpid = waitpid $self->pid, WNOHANG;
+  debug('child process check; waitpid=%s, status=%s', $waitpid, $?);
+
+  if ($waitpid != 0) {
+    delete $self->{debug_proc};
+  }
+});
+
   return 1;
 }
 
