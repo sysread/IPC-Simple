@@ -92,8 +92,8 @@ Blocks until the child process has exited.
 
 =head2 send
 
-Sends a string of text to the child process. The string will be appended with a
-single newline.
+Sends a string of text to the child process. The string will be appended with
+the value of L</eol>.
 
 =head2 recv
 
@@ -141,6 +141,10 @@ True when the message is a sub-process communication error.
 
 C<IPC::Simple> will emit highly verbose messages to C<STDERR> if the
 environment variable C<IPC_SIMPLE_DEBUG> is set to a true value.
+
+=head1 MSWIN32 SUPPORT
+
+Nope.
 
 =cut
 

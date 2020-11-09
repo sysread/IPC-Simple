@@ -9,15 +9,13 @@ cache:
   directories:
     - ~/perl5
 
-env:
-  - PERL_ANYEVENT_MODEL=Perl TEST_VERBOSE=1
-
 matrix:
   include:
-    - perl: 5.30
+    - perl: 5.32
       env: COVERAGE=1 # enables coverage+coveralls reporting
 
 perl:
+  - "5.32"
   - "5.30"
   - "5.28"
   - "5.26"
