@@ -187,7 +187,7 @@ has args =>
 has eol =>
   is => 'ro',
   isa => Str,
-  default => $/;
+  default => sub{ $/ };
 
 has run_state =>
   is => 'rw',
@@ -212,6 +212,11 @@ has fh_out =>
 has fh_err =>
   is => 'rw',
   isa => FileHandle,
+  init_arg => undef;
+
+has handle_in =>
+  is => 'rw',
+  isa => InstanceOf['AnyEvent::Handle'],
   init_arg => undef;
 
 has handle_out =>
@@ -241,8 +246,6 @@ has messages =>
   handles => {
     recv => 'get',
   };
-
-has handle_in => (is => 'rw');
 
 sub DEMOLISH {
   my $self = shift;
@@ -424,10 +427,6 @@ sub join {
 
 sub send {
   my ($self, $msg) = @_;
-  #my $fh = $self->fh_in;
-  #local $\ = $self->eol;
-  #local $| = 1;
-  #print $fh $msg;
   $self->handle_in->push_write($msg . $self->eol);
   debug('sent "%s"', $msg);
 }
