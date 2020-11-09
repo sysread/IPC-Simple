@@ -21,6 +21,7 @@ use overload fallback => 1,
     return $self->source == $other;
   };
 
+use constant IPC_STDIN  => 0;
 use constant IPC_STDOUT => 1;
 use constant IPC_STDERR => 2;
 use constant IPC_ERROR  => 3;
@@ -29,6 +30,7 @@ BEGIN{
   extends 'Exporter';
 
   our @EXPORT = qw(
+    IPC_STDIN
     IPC_STDOUT
     IPC_STDERR
     IPC_ERROR

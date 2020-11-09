@@ -187,7 +187,7 @@ has args =>
 has eol =>
   is => 'ro',
   isa => Str,
-  default => sub{ $/ };
+  default => "\n",
 
 has run_state =>
   is => 'rw',
@@ -311,8 +311,8 @@ sub _build_output_handle {
   AnyEvent::fh_unblock($fh);
 
   my $handle = AnyEvent::Handle->new(
-    fh       => $fh,
-    on_error => sub{ $self->_on_error(0, @_) },
+    fh => $fh,
+    on_error => sub{ $self->_on_error(IPC_STDIN, @_) },
   );
 
   return $handle;
