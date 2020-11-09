@@ -372,7 +372,7 @@ sub terminate {
 sub join {
   my $self = shift;
 
-  if ($self->run_state == STATE_READY) {
+  if ($self->is_ready) {
     return;
   }
 
