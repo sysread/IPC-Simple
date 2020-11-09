@@ -380,9 +380,7 @@ sub join {
   my $status;
 
   my $check; $check = AnyEvent->timer(interval => 0.1, cb => sub{
-    my $result = waitpid $self->pid, WNOHANG;
-
-    if ($result != 0 && $result != -1) {
+    if (waitpid($self->pid, WNOHANG) != 0) {
       $status = $?;
       $done->send;
       undef $check;
