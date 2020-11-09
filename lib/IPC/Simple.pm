@@ -187,7 +187,7 @@ has args =>
 has eol =>
   is => 'ro',
   isa => Str,
-  default => "\n";
+  default => AnyEvent::WIN32 ? "\r\n" : "\n";
 
 has run_state =>
   is => 'rw',

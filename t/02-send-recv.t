@@ -18,6 +18,7 @@ my $timeout = AnyEvent->timer(
   cb => sub{
     diag 'timeout reached';
     $proc->terminate;
+    use Data::Dumper; diag Dumper $proc;
     die 'timeout reached';
   },
 );
