@@ -283,13 +283,8 @@ sub launch {
 
   debug('launching: %s %s', $self->cmd, "@{$self->args}");
 
-  my $pid = open3(
-    my $in,
-    my $out,
-    my $err = gensym,
-    $self->cmd,
-    @{$self->args},
-  ) or croak $!;
+  my $pid = open3(my $in, my $out, my $err = gensym, $self->cmd, @{$self->args})
+    or croak $!;
 
   $self->sigchld_cv(AnyEvent->condvar);
 
@@ -347,7 +342,7 @@ sub _build_input_handle {
     on_read  => sub{ $self->_on_read($type, @_) },
   );
 
-  # queue an initial read to ensure the event loop is watching for reads
+  # push an initial read to prime the queue
   $self->_push_read($handle, $type);
 
   return $handle;
@@ -411,11 +406,8 @@ sub terminate {
 
 sub join {
   my $self = shift;
-
   debug('waiting for process to exit, pid %d', $self->pid);
-
   return unless $self->sigchld_cv;
-
   $self->sigchld_cv->recv;
 }
 

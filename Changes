@@ -1,5 +1,6 @@
 {{$NEXT}}
 -Drop pretense of win32 support
+-Messages are now sent asynchronously
 
 0.02 2020-04-27
 -Bugfix: use `eol` setting in reads
