@@ -292,7 +292,7 @@ sub launch {
   $self->handle_out($self->_build_input_handle($out, IPC_STDOUT));
   $self->handle_in($self->_build_output_handle($in));
 
-$self->{debug_proc} = AnyEvent->timer(after => 0.1, interval => 0.5, cb => sub{
+$self->{debug_proc} = AnyEvent->timer(after => 0, interval => 0.1, cb => sub{
   my $waitpid = waitpid $self->pid, WNOHANG;
   debug('child process check; waitpid=%s, status=%s', $waitpid, $?);
 
