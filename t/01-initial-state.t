@@ -7,6 +7,8 @@ use Carp;
 use Guard qw(scope_guard);
 use IPC::Simple;
 
+BAIL_OUT 'OS unsupported' if $^O eq 'MSWin32';
+
 ok my $proc = IPC::Simple->new(
   cmd  => 'perl',
   args => ['-e', '$|=1; while (my $line = <STDIN>) { print("$line") }'],

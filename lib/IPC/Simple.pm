@@ -152,7 +152,6 @@ use AnyEvent;
 use Carp;
 use IPC::Open3 qw(open3);
 use Moo;
-use POSIX qw(:sys_wait_h);
 use Symbol qw(gensym);
 use Types::Standard -types;
 
@@ -164,6 +163,7 @@ BEGIN{
   extends 'Exporter';
 
   our @EXPORT = qw(
+    IPC_STDIN
     IPC_STDOUT
     IPC_STDERR
     IPC_ERROR
@@ -247,6 +247,15 @@ has messages =>
     recv => 'get',
   };
 
+has sigchld_watcher =>
+  is => 'rw',
+  init_arg => undef;
+
+has sigchld_cv =>
+  is => 'rw',
+  isa => InstanceOf['AnyEvent::CondVar'],
+  init_arg => undef;
+
 sub DEMOLISH {
   my $self = shift;
   $self->terminate;
@@ -278,6 +287,18 @@ sub launch {
     @{$self->args},
   ) or croak $!;
 
+  $self->sigchld_cv(AnyEvent->condvar);
+
+  $self->sigchld_watcher(
+    AnyEvent->child(
+      pid => $pid,
+      cb => sub{
+        my ($pid, $status) = @_;
+        $self->_on_exit($status);
+      },
+    )
+  );
+
   debug('process launched with pid %d', $pid);
 
   $self->run_state(STATE_RUNNING);
@@ -291,15 +312,6 @@ sub launch {
   $self->handle_err($self->_build_input_handle($err, IPC_STDERR));
   $self->handle_out($self->_build_input_handle($out, IPC_STDOUT));
   $self->handle_in($self->_build_output_handle($in));
-
-$self->{debug_proc} = AnyEvent->timer(after => 0, interval => 0.1, cb => sub{
-  my $waitpid = waitpid $self->pid, WNOHANG;
-  debug('child process check; waitpid=%s, status=%s', $waitpid, $?);
-
-  if ($waitpid != 0) {
-    delete $self->{debug_proc};
-  }
-});
 
   return 1;
 }
@@ -358,6 +370,7 @@ sub _on_exit {
   $self->exit_code($self->exit_status >> 8);
   $self->messages->shutdown;
   debug('child (pid %d) exited with status %d (exit code: %d)', $self->pid, $self->exit_status, $self->exit_code);
+  $self->sigchld_cv->send;
 }
 
 sub _on_read {
@@ -387,48 +400,26 @@ sub terminate {
   my $self = shift;
   if ($self->is_running) {
     $self->run_state(STATE_STOPPING);
-
-    if (AnyEvent::WIN32) {
-      debug('sending KILL to pid %d', $self->pid);
-      kill 'KILL', $self->pid;
-    } else {
-      debug('sending TERM to pid %d', $self->pid);
-      kill 'TERM', $self->pid;
-    }
+    debug('sending TERM to pid %d', $self->pid);
+    kill 'TERM', $self->pid;
   }
 }
 
 sub join {
   my $self = shift;
 
-  if ($self->is_ready) {
-    return;
-  }
-
-  my $done = AnyEvent->condvar;
-  my $status;
-
-  my $check; $check = AnyEvent->timer(interval => 0.1, cb => sub{
-    my $waitpid = waitpid $self->pid, WNOHANG;
-
-    if ($waitpid != 0) {
-      $status = $?;
-      debug('child process complete; waitpid=%s, status=%s', $waitpid, $status);
-      $done->send;
-      undef $check;
-    }
-  });
-
   debug('waiting for process to exit, pid %d', $self->pid);
 
-  $done->recv;
-  $self->_on_exit($status);
+  return unless $self->sigchld_cv;
+
+  $self->sigchld_cv->recv;
 }
 
 sub send {
   my ($self, $msg) = @_;
+  debug('sending "%s"', $msg);
   $self->handle_in->push_write($msg . $self->eol);
-  debug('sent "%s"', $msg);
+  1;
 }
 
 around recv => sub{

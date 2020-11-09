@@ -7,14 +7,12 @@ use Carp;
 use Guard qw(scope_guard);
 use IPC::Simple;
 
-my $perl = q{$|=1; binmode STDOUT, "text"; binmode STDERR, "text"; warn "starting\n"; while (my $line = <STDIN>) { print("$line") }};
-diag "perl=$perl";
-my $proc = IPC::Simple->new(cmd => 'perl', args => ['-e', $perl]);
+BAIL_OUT 'OS unsupported' if $^O eq 'MSWin32';
 
-#ok my $proc = IPC::Simple->new(
-#  cmd  => 'perl',
-#  args => ['-e', '$|=1; binmode STDOUT, "text"; binmode STDERR, "text"; warn "starting\n"; while (my $line = <STDIN>) { print("$line") }'],
-#), 'ctor';
+ok my $proc = IPC::Simple->new(
+  cmd  => 'perl',
+  args => ['-e', '$|=1; warn "starting\n"; while (my $line = <STDIN>) { print("$line") }'],
+), 'ctor';
 
 # Start a timer to ensure a bug doesn't cause us to run indefinitely
 my $timeout = AnyEvent->timer(
