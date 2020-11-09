@@ -18,5 +18,5 @@ install:
 test_script:
   - set IPC_SIMPLE_DEBUG=1
   - set PERL_ANYEVENT_MODEL=Perl
-  - prove -lvr t/
-#  - prove -lmv t/02-send-recv.t
+#  - prove -lvr t/
+  - prove -lmv t/02-send-recv.t

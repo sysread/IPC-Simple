@@ -9,7 +9,7 @@ use IPC::Simple;
 
 ok my $proc = IPC::Simple->new(
   cmd  => 'perl',
-  args => ['-e', 'warn "starting\n"; while (my $line = <STDIN>) { local $|=1; print("$line") }'],
+  args => ['-e', 'use IO::Handle; STDOUT->autoflush(1); STDERR->autoflush(1); warn "starting\n"; while (my $line = <STDIN>) { print("$line") }'],
 ), 'ctor';
 
 # Start a timer to ensure a bug doesn't cause us to run indefinitely

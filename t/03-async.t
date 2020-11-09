@@ -9,7 +9,7 @@ use Guard qw(scope_guard);
 
 ok my $proc = IPC::Simple->new(
   cmd  => 'perl',
-  args => ['-e', 'local $|=1; while (my $line = <STDIN>) { print("$line") }'],
+  args => ['-e', '$|=1; while (my $line = <STDIN>) { print("$line") }'],
 ), 'ctor';
 
 # Start a timer to ensure a bug doesn't cause us to run indefinitely
