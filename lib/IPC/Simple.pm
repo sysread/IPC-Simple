@@ -380,8 +380,11 @@ sub join {
   my $status;
 
   my $check; $check = AnyEvent->timer(interval => 0.1, cb => sub{
-    if (waitpid($self->pid, WNOHANG) != 0) {
+    my $waitpid = waitpid $self->pid, WNOHANG;
+
+    if ($waitpid != 0) {
       $status = $?;
+      debug('child process complete; waitpid=%s, status=%s', $waitpid, $status);
       $done->send;
       undef $check;
     }
