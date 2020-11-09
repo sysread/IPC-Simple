@@ -7,14 +7,14 @@ use Carp;
 use Guard qw(scope_guard);
 use IPC::Simple;
 
-my $echo = 'perl -e "use IO::Handle; STDOUT->autoflush(1); STDERR->autoflush(1); warn qq{starting\n}; while (my \$line = <STDIN>) { print(qq{\$line}) }"';
-ok my $proc = IPC::Simple->new(cmd  => $echo), 'ctor';
+my $perl = q{$|=1; binmode STDOUT, "text"; binmode STDERR, "text"; warn "starting\n"; while (my $line = <STDIN>) { print("$line") }};
+diag "perl=$perl";
+my $proc = IPC::Simple->new(cmd => 'perl', args => ['-e', $perl]);
 
-#my $echo = AnyEvent::WIN32
-#  ? '"use IO::Handle; STDOUT->autoflush(1); STDERR->autoflush(1); warn qq{starting\n}; while (my $line = <STDIN>) { print(qq{$line}) }"'
-#  : 'use IO::Handle; STDOUT->autoflush(1); STDERR->autoflush(1); warn qq{starting\n}; while (my $line = <STDIN>) { print(qq{$line}) }';
-
-#ok my $proc = IPC::Simple->new(cmd  => 'perl', args => ['-e', $echo]), 'ctor';
+#ok my $proc = IPC::Simple->new(
+#  cmd  => 'perl',
+#  args => ['-e', '$|=1; binmode STDOUT, "text"; binmode STDERR, "text"; warn "starting\n"; while (my $line = <STDIN>) { print("$line") }'],
+#), 'ctor';
 
 # Start a timer to ensure a bug doesn't cause us to run indefinitely
 my $timeout = AnyEvent->timer(

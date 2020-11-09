@@ -1,26 +1,32 @@
 use strict;
 use warnings;
 
-use Test::More;
-use AnyEvent::Util;
+#use Test::More;
+use AnyEvent;
+use Test2::V0;
+use Symbol qw(gensym);
+use IPC::Open3 qw(open3);
 
-my $echo = 'perl -e "warn qq{starting\\n}; my \\$line = <STDIN>; print(\\$line)"; exit 0';
-diag $echo;
+my $perl = q{$|=1; binmode STDOUT, \"text\"; binmode STDERR, \"text\"; warn \"starting\n\"; while (my $line = <STDIN>) { print(\"$line\") }};
 
-my $stdin = "hello world\n";
-my $stdout;
-my $stderr;
+unless (AnyEvent::WIN32) {
+  $perl =~ s/\$/\\\$/g;
+}
 
-my $cv = AnyEvent::Util::run_cmd(
-  $echo,
-  '<'  => \$stdin,
-  '>'  => \$stdout,
-  '2>' => \$stderr,
-);
+my $code = qq{perl -e "$perl"};
+diag "code=$code";
+my $pid = open3(my $in, my $out, my $err = gensym, $code) or die $!;
 
-$cv->recv;
+print $out "hello world\r\n";
 
-is $stderr, "starting\n";
-is $stdout, "hello world\n";
+my $rs = waitpid $pid, 0;
+diag "waitpid=$rs, status=$?";
+
+my $error = <$err>;
+diag "err=$error";
+
+my $line = <$out>;
+
+is $line, "hello world\n", 'stdout';
 
 done_testing;
