@@ -242,6 +242,8 @@ has messages =>
     recv => 'get',
   };
 
+has handle_in => (is => 'rw');
+
 sub DEMOLISH {
   my $self = shift;
   $self->terminate;
@@ -283,8 +285,9 @@ sub launch {
   $self->fh_out($out);
   $self->fh_err($err);
   $self->messages(IPC::Simple::Channel->new);
-  $self->handle_err($self->_build_handle($err, IPC_STDERR));
-  $self->handle_out($self->_build_handle($out, IPC_STDOUT));
+  $self->handle_err($self->_build_input_handle($err, IPC_STDERR));
+  $self->handle_out($self->_build_input_handle($out, IPC_STDOUT));
+  $self->handle_in($self->_build_output_handle($in));
 
 $self->{debug_proc} = AnyEvent->timer(after => 0.1, interval => 0.5, cb => sub{
   my $waitpid = waitpid $self->pid, WNOHANG;
@@ -298,7 +301,21 @@ $self->{debug_proc} = AnyEvent->timer(after => 0.1, interval => 0.5, cb => sub{
   return 1;
 }
 
-sub _build_handle {
+sub _build_output_handle {
+  my ($self, $fh) = @_;
+
+  # set non-blocking
+  AnyEvent::fh_unblock($fh);
+
+  my $handle = AnyEvent::Handle->new(
+    fh       => $fh,
+    on_error => sub{ $self->_on_error(0, @_) },
+  );
+
+  return $handle;
+}
+
+sub _build_input_handle {
   my ($self, $fh, $type) = @_;
 
   # set non-blocking
@@ -407,10 +424,11 @@ sub join {
 
 sub send {
   my ($self, $msg) = @_;
-  my $fh = $self->fh_in;
-  local $\ = $self->eol;
-  local $| = 1;
-  print $fh $msg;
+  #my $fh = $self->fh_in;
+  #local $\ = $self->eol;
+  #local $| = 1;
+  #print $fh $msg;
+  $self->handle_in->push_write($msg . $self->eol);
   debug('sent "%s"', $msg);
 }
 
