@@ -11,7 +11,7 @@ BAIL_OUT 'OS unsupported' if $^O eq 'MSWin32';
 
 ok my $proc = IPC::Simple->new(
   cmd  => 'perl',
-  args => ['-e', '$|=1; while (my $line = <STDIN>) { print("$line") }'],
+  args => ['-e', '$|=1; my $line = <STDIN>; print("$line");'],
 ), 'ctor';
 
 # Start a timer to ensure a bug doesn't cause us to run indefinitely
