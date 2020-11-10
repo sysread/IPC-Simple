@@ -367,9 +367,18 @@ sub _on_exit {
   $self->run_state(STATE_READY);
   $self->exit_status($status || 0);
   $self->exit_code($self->exit_status >> 8);
-  $self->messages->shutdown;
-  debug('child (pid %d) exited with status %d (exit code: %d)', $self->pid, $self->exit_status, $self->exit_code);
-  $self->sigchld_cv->send;
+
+  debug('child (pid %s) exited with status %d (exit code: %d)',
+    $self->pid || '(no pid)',
+    $self->exit_status,
+    $self->exit_code,
+  );
+
+  $self->messages->shutdown
+    if $self->messages; # won't be set if launch failed early enough
+
+  $self->sigchld_cv->send
+    if $self->sigchld_cv;
 }
 
 sub _on_read {
