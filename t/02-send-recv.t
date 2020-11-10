@@ -8,13 +8,11 @@ use Guard qw(scope_guard);
 use IPC::Simple;
 
 my $eol = IPC::Simple::DEFAULT_EOL;
-
-my $code = '$|=1; warn "starting'.$eol.'"; my $line = <STDIN>; print("$line'.$eol.'");';
-$code =~ s/\n/\\n/g;
-$code =~ s/\r/\\r/g;
+my $code = '$|=1; warn "starting\n"; my $line = <STDIN>; print("$line");';
 
 if (AnyEvent::WIN32) {
   $code =~ s/"/\\"/g;
+  $code = "binmode(STDERR); binmode(STDOUT); binmode(STDIN); $code";
   $code = '"'.$code.'"';
 }
 
