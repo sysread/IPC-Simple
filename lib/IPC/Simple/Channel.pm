@@ -53,26 +53,23 @@ sub put {
 
 sub get {
   my $self = shift;
-
-  if (defined(my $msg = $self->async)) {
-    return $msg->recv;
-  }
-
-  return;
+  $self->async->recv;
 }
 
 sub async {
   my $self = shift;
-
-  return shift @{ $self->buffer }
-    if $self->is_shutdown;
-
   my $cv = AnyEvent->condvar;
-  push @{ $self->waiters }, $cv;
 
-  $self->flush;
-
-  return $cv;
+  if ($self->is_shutdown) {
+    my $msg = shift @{ $self->buffer };
+    $cv->send($msg);
+    return $cv;
+  }
+  else {
+    push @{ $self->waiters }, $cv;
+    $self->flush;
+    return $cv;
+  }
 }
 
 sub flush {
