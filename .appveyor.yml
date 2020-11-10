@@ -24,3 +24,4 @@ test_script:
   - set PERL_ANYEVENT_MODEL=Perl
 # - prove -lvr t/
   - prove -lvr t/00-win32.t
+  - prove -lvr t/02-send-recv.t

@@ -7,7 +7,6 @@ use Carp;
 use Guard qw(scope_guard);
 use IPC::Simple;
 
-my $eol = IPC::Simple::DEFAULT_EOL;
 my $code = '$|=1; warn "starting\n"; my $line = <STDIN>; print("$line");';
 
 if (AnyEvent::WIN32) {
@@ -16,7 +15,7 @@ if (AnyEvent::WIN32) {
   $code = '"'.$code.'"';
 }
 
-my $proc = IPC::Simple->new(cmd  => 'perl', args => ['-e', $code], eol  => $eol);
+my $proc = IPC::Simple->new(cmd => 'perl', args => ['-e', $code], eol => "\n");
 
 # Start a timer to ensure a bug doesn't cause us to run indefinitely
 my $timeout = AnyEvent->timer(
