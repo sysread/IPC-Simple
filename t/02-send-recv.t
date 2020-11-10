@@ -7,11 +7,12 @@ use Carp;
 use Guard qw(scope_guard);
 use IPC::Simple;
 
-BAIL_OUT 'OS unsupported' if $^O eq 'MSWin32';
+my $eol = IPC::Simple::DEFAULT_EOL;
 
 ok my $proc = IPC::Simple->new(
   cmd  => 'perl',
-  args => ['-e', '$|=1; warn "starting\n"; my $line = <STDIN>; print("$line");'],
+  args => ['-e', '$|=1; warn "starting'.$eol.'"; while (my $line = <STDIN>) { print("$line'.$eol.'") }'],
+  eol  => $eol,
 ), 'ctor';
 
 # Start a timer to ensure a bug doesn't cause us to run indefinitely

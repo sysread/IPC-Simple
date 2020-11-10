@@ -177,6 +177,7 @@ BEGIN{
 use constant STATE_READY    => 0;
 use constant STATE_RUNNING  => 1;
 use constant STATE_STOPPING => 2;
+use constant DEFAULT_EOL    => AnyEvent::WIN32 ? "\r\n" : "\n";
 
 has cmd =>
   is => 'ro',
@@ -191,7 +192,7 @@ has args =>
 has eol =>
   is => 'ro',
   isa => Str,
-  default => "\n",
+  default => DEFAULT_EOL;
 
 has run_state =>
   is => 'rw',

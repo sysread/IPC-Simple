@@ -7,12 +7,7 @@ use Carp;
 use IPC::Simple;
 use Guard qw(scope_guard);
 
-BAIL_OUT 'OS unsupported' if $^O eq 'MSWin32';
-
-ok my $proc = IPC::Simple->new(
-  cmd  => 'perl',
-  args => ['-e', 'sleep 10'],
-), 'ctor';
+my $proc = IPC::Simple->new(cmd  => 'perl', args => ['-e', 'sleep 10']);
 
 # Start a timer to ensure a bug doesn't cause us to run indefinitely
 my $timeout = AnyEvent->timer(
