@@ -3,7 +3,7 @@ package IPC::Simple::Util;
 use strict;
 use warnings;
 
-use parent 'Exporter';
+use base 'Exporter';
 
 our @EXPORT = qw(
   debug
