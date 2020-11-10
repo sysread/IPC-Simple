@@ -156,6 +156,7 @@ use AnyEvent;
 use Carp;
 use IPC::Open3 qw(open3);
 use Moo;
+use POSIX qw(:sys_wait_h);
 use Symbol qw(gensym);
 use Types::Standard -types;
 
@@ -416,9 +417,28 @@ sub terminate {
 
 sub join {
   my $self = shift;
-  debug('waiting for process to exit, pid %d', $self->pid);
   return unless $self->sigchld_cv;
-  $self->sigchld_cv->recv;
+  debug('waiting for process to exit, pid %d', $self->pid);
+
+  if (AnyEvent::WIN32) {
+    my $done = AnyEvent->condvar;
+
+    my $check; $check = AnyEvent->timer(
+      after => 0,
+      interval => 0.05,
+      cb => sub{
+        # Returns -1 if pid doesn't exist, pid if it was reaped
+        if (waitpid($self->pid, WNOHANG) != 0) {
+          $done->send;
+        }
+      },
+    );
+
+    $done->recv;
+  }
+  else {
+    $self->sigchld_cv->recv;
+  }
 }
 
 sub send {
