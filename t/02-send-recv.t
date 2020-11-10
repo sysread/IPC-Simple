@@ -9,7 +9,7 @@ use IPC::Simple;
 
 my $eol = IPC::Simple::DEFAULT_EOL;
 
-my $code = '$|=1; warn "starting'.$eol.'"; while (my $line = <STDIN>) { print("$line'.$eol.'") }';
+my $code = '$|=1; warn "starting'.$eol.'"; my $line = <STDIN>; print("$line'.$eol.'");';
 $code =~ s/\n/\\n/g;
 $code =~ s/\r/\\r/g;
 
