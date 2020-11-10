@@ -53,7 +53,12 @@ sub put {
 
 sub get {
   my $self = shift;
-  $self->async->recv;
+
+  if (defined(my $msg = $self->async)) {
+    return $msg->recv;
+  }
+
+  return;
 }
 
 sub async {
