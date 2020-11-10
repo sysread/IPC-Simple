@@ -1,0 +1,27 @@
+branches:
+  only:
+    - win32
+
+skip_tags:
+  - true
+
+build:
+  - off
+
+cache:
+  - C:\strawberry
+
+platform:
+  - x86
+  - x64
+
+install:
+  - if not exist "C:\strawberry" cinst strawberryperl
+  - set PATH=C:\strawberry\perl\bin;C:\strawberry\perl\site\bin;C:\strawberry\c\bin;%PATH%
+  - cd C:\projects\%APPVEYOR_PROJECT_NAME%
+  - cpanm --installdeps . -nq
+
+test_script:
+  - set IPC_SIMPLE_DEBUG=1
+  - set PERL_ANYEVENT_MODEL=Perl
+  - prove -lvr t/
