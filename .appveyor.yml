@@ -2,11 +2,9 @@ branches:
   only:
     - win32
 
-skip_tags:
-  - true
+skip_tags: true
 
-build:
-  - off
+build: off
 
 cache:
   - C:\strawberry
