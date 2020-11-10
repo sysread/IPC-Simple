@@ -13,6 +13,8 @@ $code =~ s/"/\\"/g;
 $code = "binmode(STDERR); binmode(STDOUT); binmode(STDIN); $code";
 $code = '"'.$code.'"';
 
+diag "perl -e $code";
+
 system('perl', '-e', $code);
 
 ok 1, 'placeholder';

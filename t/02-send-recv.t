@@ -7,7 +7,7 @@ use Carp;
 use Guard qw(scope_guard);
 use IPC::Simple;
 
-my $code = '$|=1; warn "starting\n"; my $line = <STDIN>; print("$line");';
+my $code = '$|=1; warn "starting\n"; chomp(my $line = <STDIN>); print("$line\n");';
 
 if (AnyEvent::WIN32) {
   $code =~ s/"/\\"/g;
