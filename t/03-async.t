@@ -7,10 +7,11 @@ use Carp;
 use IPC::Simple;
 use Guard qw(scope_guard);
 
-ok my $proc = IPC::Simple->new(
+my $proc = IPC::Simple->new(
   cmd  => 'perl',
   args => ['-e', '$|=1; my $line = <STDIN>; print("$line");'],
-), 'ctor';
+  args => ['-e', '$|=1; while (my $line = <STDIN>) { print("$line") }'],
+);
 
 # Start a timer to ensure a bug doesn't cause us to run indefinitely
 my $timeout = AnyEvent->timer(

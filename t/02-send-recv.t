@@ -9,11 +9,16 @@ use IPC::Simple;
 
 my $eol = IPC::Simple::DEFAULT_EOL;
 
-ok my $proc = IPC::Simple->new(
-  cmd  => 'perl',
-  args => ['-e', '$|=1; warn "starting'.$eol.'"; while (my $line = <STDIN>) { print("$line'.$eol.'") }'],
-  eol  => $eol,
-), 'ctor';
+my $code = '$|=1; warn "starting'.$eol.'"; while (my $line = <STDIN>) { print("$line'.$eol.'") }';
+$code =~ s/\n/\\n/g;
+$code =~ s/\r/\\r/g;
+
+if (AnyEvent::WIN32) {
+  $code =~ s/"/\\"/g;
+  $code = '"'.$code.'"';
+}
+
+my $proc = IPC::Simple->new(cmd  => 'perl', args => ['-e', $code], eol  => $eol);
 
 # Start a timer to ensure a bug doesn't cause us to run indefinitely
 my $timeout = AnyEvent->timer(
