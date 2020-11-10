@@ -11,7 +11,7 @@ cache:
 
 platform:
   - x86
-  - x64
+# - x64
 
 install:
   - if not exist "C:\strawberry" cinst strawberryperl
