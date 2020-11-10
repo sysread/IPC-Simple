@@ -1,7 +1,5 @@
 language: perl
 
-sudo: false
-
 notifications:
   email: false
 
