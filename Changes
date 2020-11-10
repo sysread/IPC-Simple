@@ -1,4 +1,6 @@
 {{$NEXT}}
+
+0.03 2020-11-10
 -Drop pretense of win32 support
 -Messages are now sent asynchronously
 
