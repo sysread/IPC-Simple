@@ -20,8 +20,8 @@ my $stderr = $proc->stderr;
 my $errors = $proc->errors;
 
 $proc->send(1);
-is $stderr->recv, 'stderr message', 'stderr';
-is $stdout->recv, 'stdout message', 'stdout';
+is $stderr->next, 'stderr message', 'stderr';
+is $stdout->next, 'stdout message', 'stdout';
 
 $proc->terminate;
 $proc->join;

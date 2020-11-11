@@ -139,6 +139,7 @@ use AnyEvent::Handle;
 use AnyEvent;
 use Carp;
 use IPC::Open3 qw(open3);
+use Iterator::Simple qw(iter);
 use Moo;
 use POSIX qw(:sys_wait_h);
 use Symbol qw(gensym);
@@ -237,7 +238,7 @@ sub stdout {
   my $self = shift;
   my $key = '_' . IPC_STDOUT;
   $self->{$key} ||= IPC::Simple::Channel->new;
-  return $self->{$key};
+  return iter($self->{$key});
 }
 
 has _stderr =>
@@ -250,7 +251,7 @@ sub stderr {
   my $self = shift;
   my $key = '_' . IPC_STDERR;
   $self->{$key} ||= IPC::Simple::Channel->new;
-  return $self->{$key};
+  return iter($self->{$key});
 }
 
 has _errors =>
@@ -263,7 +264,7 @@ sub errors {
   my $self = shift;
   my $key = '_' . IPC_ERROR;
   $self->{$key} ||= IPC::Simple::Channel->new;
-  return $self->{$key};
+  return iter($self->{$key});
 }
 
 sub DEMOLISH {

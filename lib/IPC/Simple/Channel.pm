@@ -61,6 +61,11 @@ sub recv {
   $self->async->recv;
 }
 
+sub next {
+  my $self = shift;
+  $self->async->recv;
+}
+
 sub async {
   my $self = shift;
   my $cv = AnyEvent->condvar;
