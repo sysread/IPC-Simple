@@ -148,17 +148,6 @@ use IPC::Simple::Channel;
 use IPC::Simple::Message;
 use IPC::Simple::Util;
 
-BEGIN{
-  extends 'Exporter';
-
-  our @EXPORT = qw(
-    IPC_STDIN
-    IPC_STDOUT
-    IPC_STDERR
-    IPC_ERROR
-  );
-}
-
 use constant STATE_READY    => 0;
 use constant STATE_RUNNING  => 1;
 use constant STATE_STOPPING => 2;
