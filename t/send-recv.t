@@ -6,8 +6,6 @@ use AnyEvent;
 use Carp;
 use IPC::Simple qw(spawn);
 
-BAIL_OUT 'OS unsupported' if $^O eq 'MSWin32';
-
 my $proc = spawn ['perl', '-e', '$|=1; warn "starting\n"; my $line = <STDIN>; print("$line");'];
 
 # Start a timer to ensure a bug doesn't cause us to run indefinitely
