@@ -3,12 +3,9 @@ package IPC::Simple;
 
 =head1 SYNOPSIS
 
-  use IPC::Simple;
+  use IPC::Simple qw(spawn);
 
-  my $ssh = IPC::Simple->new(
-    cmd => ['ssh', $host],
-    eol => "\n",
-  );
+  my $ssh = spawn ['ssh', $host];
 
   if ($ssh->launch) {
     $ssh->send('ls -lah');          # get directory listing
@@ -34,6 +31,28 @@ package IPC::Simple;
 
 Provides a simplified interface for managing and kibbitzing with a child
 process.
+
+=head1 EXPORTS
+
+Nothing is exported by default, but the following subroutines may be requested
+for import.
+
+=head2 spawn
+
+Returns a new C<IPC::Simple> object. The first argument is either the command
+line string or an array ref of the command and its arguments. Any remaining
+arguments are treated as keyword pairs for the constructor.
+
+C<spawn> does I<not> launch the process.
+
+  my $proc = spawn ["echo", "hello world"], eol => "\n";
+
+Is equivalent to:
+
+  my $proc = IPC::Simple->new(
+    cmd => ["echo", "hello world"],
+    eol => "\n",
+  );
 
 =head1 METHODS
 
@@ -135,7 +154,7 @@ use AnyEvent::Handle;
 use AnyEvent;
 use Carp;
 use IPC::Open3 qw(open3);
-use Iterator::Simple qw(iterator);
+use Iterator::Simple qw(iterator iter);
 use Moo;
 use POSIX qw(:sys_wait_h);
 use Symbol qw(gensym);
@@ -143,16 +162,30 @@ use Types::Standard -types;
 
 use IPC::Simple::Channel;
 use IPC::Simple::Message;
-use IPC::Simple::Util;
+
+use overload fallback => 1,
+  '|'  => \&chain,
+  '<>' => \&recv;
 
 use constant STATE_READY    => 0;
 use constant STATE_RUNNING  => 1;
 use constant STATE_STOPPING => 2;
 
+BEGIN{
+  extends 'Exporter';
+  our @EXPORT_OK = qw(spawn);
+}
+
 has cmd =>
   is => 'ro',
   isa => Str | ArrayRef[Str],
   require => 1;
+
+sub command {
+  my $self = shift;
+  return $self->cmd if ref $self->cmd;
+  return [$self->cmd];
+}
 
 has eol =>
   is => 'ro',
@@ -166,7 +199,7 @@ has run_state =>
 
 after run_state => sub{
   my $self = shift;
-  debug('run state changed to %d', @_) if @_;
+  $self->debug('run state changed to %d', @_) if @_;
 };
 
 has pid =>
@@ -219,45 +252,9 @@ has messages =>
   isa => InstanceOf['IPC::Simple::Channel'],
   init_arg => undef;
 
-has _stdout =>
-  is => 'ro',
-  isa => Maybe[InstanceOf['IPC::Simple::Channel']],
-  init_arg => undef,
-  predicate => 1;
-
-sub stdout {
-  my $self = shift;
-  my $key = '_' . IPC_STDOUT;
-  $self->{$key} ||= IPC::Simple::Channel->new;
-  return $self->{$key};
-}
-
-has _stderr =>
-  is => 'ro',
-  isa => Maybe[InstanceOf['IPC::Simple::Channel']],
-  init_arg => undef,
-  predicate => 1;
-
-sub stderr {
-  my $self = shift;
-  my $key = '_' . IPC_STDERR;
-  $self->{$key} ||= IPC::Simple::Channel->new;
-  return $self->{$key};
-}
-
-has _errors =>
-  is => 'ro',
-  isa => Maybe[InstanceOf['IPC::Simple::Channel']],
-  init_arg => undef,
-  predicate => 1;
-
-sub errors {
-  my $self = shift;
-  my $key = '_' . IPC_ERROR;
-  $self->{$key} ||= IPC::Simple::Channel->new;
-  return $self->{$key};
-}
-
+#-------------------------------------------------------------------------------
+# Ensure the process is cleaned up when the object is garbage collected.
+#-------------------------------------------------------------------------------
 sub DEMOLISH {
   my $self = shift;
   $self->terminate;
@@ -267,15 +264,35 @@ sub DEMOLISH {
   }
 }
 
+#-------------------------------------------------------------------------------
+# Convenience constructor
+#-------------------------------------------------------------------------------
+sub spawn ($;%) {
+  my ($cmd, @args) = @_;
+  return IPC::Simple->new(cmd => $cmd, @args);
+}
+
+#-------------------------------------------------------------------------------
+# Logs debug messages
+#-------------------------------------------------------------------------------
+sub debug {
+  my $self = shift;
+
+  if ($ENV{IPC_SIMPLE_DEBUG}) {
+    my $msg = sprintf shift, @_;
+    my ($pkg, $file, $line) = caller;
+    my $ts = time;
+    my $pid = $self->pid || '(ready)';
+    warn "<$pkg:$line | $ts | pid:$pid> $msg\n";
+  }
+}
+
+#-------------------------------------------------------------------------------
+# State predicates
+#-------------------------------------------------------------------------------
 sub is_ready    { $_[0]->run_state == STATE_READY }
 sub is_running  { $_[0]->run_state == STATE_RUNNING }
 sub is_stopping { $_[0]->run_state == STATE_STOPPING }
-
-sub command {
-  my $self = shift;
-  return $self->cmd if ref $self->cmd;
-  return [$self->cmd];
-}
 
 sub launch {
   my $self = shift;
@@ -290,12 +307,12 @@ sub launch {
 
   my $cmd = $self->command;
 
-  debug('launching: %s', "@$cmd");
+  $self->debug('launching: %s', "@$cmd");
 
   my $pid = open3(my $in, my $out, my $err = gensym, @$cmd)
     or croak $!;
 
-  debug('process launched with pid %d', $pid);
+  $self->debug('process launched with pid %d', $pid);
 
   $self->run_state(STATE_RUNNING);
   $self->exit_status(undef);
@@ -360,7 +377,7 @@ sub _on_exit {
   $self->exit_status($status || 0);
   $self->exit_code($self->exit_status >> 8);
 
-  debug('child (pid %s) exited with status %d (exit code: %d)',
+  $self->debug('child (pid %s) exited with status %d (exit code: %d)',
     $self->pid || '(no pid)',
     $self->exit_status,
     $self->exit_code,
@@ -372,7 +389,7 @@ sub _on_exit {
 
 sub _on_read {
   my ($self, $type, $handle) = @_;
-  debug('read event type=%d', $type);
+  $self->debug('read event type=%s', $type);
   $self->_push_read($handle, $type);
 }
 
@@ -387,36 +404,20 @@ sub _push_read {
 
 sub _queue_message {
   my ($self, $type, $msg) = @_;
-  my $channel = "_$type";
-  debug('recv type=%s, msg="%s"', $type, $msg);
-
-  if (exists $self->{$channel} && defined $self->{$channel}) {
-    $self->{$channel}->put($msg);
-  } else {
-    $self->messages->put(
-      IPC::Simple::Message->new(
-        source  => $type,
-        message => $msg,
-      ),
-    );
-  }
+  $self->debug('buffered type=%s, msg="%s"', $type, $msg);
+  $self->messages->put(IPC::Simple::Message->new(source => $type, message => $msg));
 }
 
 sub terminate {
   my $self = shift;
   if ($self->is_running) {
     $self->run_state(STATE_STOPPING);
-    debug('sending TERM to pid %d', $self->pid);
+    $self->debug('sending TERM to pid %d', $self->pid);
     kill 'TERM', $self->pid;
 
     $self->handle_in->push_shutdown;
-    close $self->{fh_in};
-
     $self->handle_out->push_shutdown;
-    close $self->{fh_out};
-
     $self->handle_err->push_shutdown;
-    close $self->{fh_err};
   }
 }
 
@@ -425,7 +426,7 @@ sub join {
 
   return if $self->is_ready;
 
-  debug('waiting for process to exit, pid %d', $self->pid);
+  $self->debug('waiting for process to exit, pid %d', $self->pid);
 
   my $done = AnyEvent->condvar;
 
@@ -452,34 +453,56 @@ sub join {
 
 sub send {
   my ($self, $msg) = @_;
-  debug('sending "%s"', $msg);
+  $self->debug('sending "%s"', $msg);
   $self->handle_in->push_write($msg . $self->eol);
   1;
 }
 
 sub recv {
   my ($self, $type) = @_;
-  debug('waiting on message');
+  $self->debug('waiting on message from pid %d', $self->pid);
   $self->messages->get;
 }
 
-sub iter {
-  my $self = shift;
+sub __iter__ {
+  my ($self, $src) = @_;
+
+  unless ($self->is_ready) {
+    croak 'chaining must occur before the IPC::Simple process has been launched';
+  }
+
+  my $launched;
 
   iterator{
+    unless ($launched) {
+      $self->launch;
+      $launched = 1;
+    }
+
+    if ($src) {
+      my $in = <$src>;
+      $self->send($in);
+    }
+
     my $msg = $self->recv;
 
     unless (defined $msg) {
+      $self->terminate;
+      $self->join;
       return;
     }
 
     if ($msg->error) {
+      if ($msg =~ /broken pipe/i) {
+        $self->terminate;
+        $self->join;
+        return;
+      }
+
       croak $msg;
-    }
-    elsif ($msg->stderr) {
+    } elsif ($msg->stderr) {
       carp $msg;
-    }
-    elsif ($msg->stdout) {
+    } else {
       return $msg;
     }
   };

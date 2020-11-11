@@ -4,11 +4,11 @@ use warnings;
 use Test::More;
 use AnyEvent;
 use Carp;
-use IPC::Simple;
+use IPC::Simple qw(spawn);
 
 BAIL_OUT 'OS unsupported' if $^O eq 'MSWin32';
 
-ok my $proc = IPC::Simple->new(cmd => ['perl', '-e', 'sleep 10']), 'ctor';
+ok my $proc = spawn(['perl', '-e', 'sleep 10']), 'ctor';
 
 # Start a timer to ensure a bug doesn't cause us to run indefinitely
 my $timeout = AnyEvent->timer(
