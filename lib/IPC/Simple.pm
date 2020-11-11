@@ -154,7 +154,6 @@ use AnyEvent::Handle;
 use AnyEvent;
 use Carp;
 use IPC::Open3 qw(open3);
-use Iterator::Simple qw(iterator iter);
 use Moo;
 use POSIX qw(:sys_wait_h);
 use Symbol qw(gensym);
@@ -162,10 +161,6 @@ use Types::Standard -types;
 
 use IPC::Simple::Channel;
 use IPC::Simple::Message;
-
-use overload fallback => 1,
-  '|'  => \&chain,
-  '<>' => \&recv;
 
 use constant STATE_READY    => 0;
 use constant STATE_RUNNING  => 1;
@@ -462,50 +457,6 @@ sub recv {
   my ($self, $type) = @_;
   $self->debug('waiting on message from pid %d', $self->pid);
   $self->messages->get;
-}
-
-sub __iter__ {
-  my ($self, $src) = @_;
-
-  unless ($self->is_ready) {
-    croak 'chaining must occur before the IPC::Simple process has been launched';
-  }
-
-  my $launched;
-
-  iterator{
-    unless ($launched) {
-      $self->launch;
-      $launched = 1;
-    }
-
-    if ($src) {
-      my $in = <$src>;
-      $self->send($in);
-    }
-
-    my $msg = $self->recv;
-
-    unless (defined $msg) {
-      $self->terminate;
-      $self->join;
-      return;
-    }
-
-    if ($msg->error) {
-      if ($msg =~ /broken pipe/i) {
-        $self->terminate;
-        $self->join;
-        return;
-      }
-
-      croak $msg;
-    } elsif ($msg->stderr) {
-      carp $msg;
-    } else {
-      return $msg;
-    }
-  };
 }
 
 1;

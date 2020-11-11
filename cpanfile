@@ -4,7 +4,6 @@ requires 'AnyEvent::Util'   => '0';
 requires 'Carp'             => '0';
 requires 'Exporter'         => '0';
 requires 'IPC::Open3'       => '0';
-requires 'Iterator::Simple' => '0';
 requires 'Moo'              => '0';
 requires 'POSIX'            => '0';
 requires 'Symbol'           => '0';
