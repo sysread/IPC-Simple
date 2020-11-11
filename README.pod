@@ -114,22 +114,6 @@ abnormal termination).
 Each message returned by C<recv> is an object overloaded so that it can be
 treated as a string as well as providing the following methods:
 
-=head2 async
-
-Schedules a callback for the next line of input to be received, returning
-immediately.
-
-  $proc->async(sub{
-    my $msg = shift;
-
-    if ($msg->stdout) {
-      ...
-    }
-  });
-
-This is done with L<AnyEvent/CONDITION-VARIABLES>, so the same caveats about
-races and dead locks apply. It is up to the caller to manage their event loop.
-
 =over
 
 =item stdout
