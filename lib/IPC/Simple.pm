@@ -75,6 +75,18 @@ command string or as an array ref of the command and its arguments.
 The end-of-line character to print at the end of each call to L</send>.
 Defaults to C<"\n">.
 
+=item cb
+
+Optionally, a callback may be specified to receive messages as they arrive.
+
+  my $proc = spawn [...], cb => sub{
+    my ($proc, $msg) = @_;
+    ...
+  };
+
+  $proc->launch;
+  $proc->join;
+
 =back
 
 =head2 pid
@@ -187,6 +199,10 @@ has eol =>
   isa => Str,
   default => "\n",
 
+has cb =>
+  is => 'ro',
+  isa => Maybe[CodeRef];
+
 has run_state =>
   is => 'rw',
   isa => Enum[ STATE_READY, STATE_RUNNING, STATE_STOPPING ],
@@ -200,21 +216,6 @@ after run_state => sub{
 has pid =>
   is => 'rw',
   isa => Num,
-  init_arg => undef;
-
-has fh_in =>
-  is => 'rw',
-  isa => FileHandle,
-  init_arg => undef;
-
-has fh_out =>
-  is => 'rw',
-  isa => FileHandle,
-  init_arg => undef;
-
-has fh_err =>
-  is => 'rw',
-  isa => FileHandle,
   init_arg => undef;
 
 has handle_in =>
@@ -289,6 +290,9 @@ sub is_ready    { $_[0]->run_state == STATE_READY }
 sub is_running  { $_[0]->run_state == STATE_RUNNING }
 sub is_stopping { $_[0]->run_state == STATE_STOPPING }
 
+#-------------------------------------------------------------------------------
+# Launch and helpers
+#-------------------------------------------------------------------------------
 sub launch {
   my $self = shift;
 
@@ -313,9 +317,6 @@ sub launch {
   $self->exit_status(undef);
   $self->exit_code(undef);
   $self->pid($pid);
-  $self->fh_in($in);
-  $self->fh_out($out);
-  $self->fh_err($err);
   $self->messages(IPC::Simple::Channel->new);
   $self->handle_err($self->_build_input_handle($err, IPC_STDERR));
   $self->handle_out($self->_build_input_handle($out, IPC_STDOUT));
@@ -400,9 +401,17 @@ sub _push_read {
 sub _queue_message {
   my ($self, $type, $msg) = @_;
   $self->debug('buffered type=%s, msg="%s"', $type, $msg);
-  $self->messages->put(IPC::Simple::Message->new(source => $type, message => $msg));
+
+  if ($self->cb) {
+    $self->cb->($self, IPC::Simple::Message->new(source => $type, message => $msg));
+  } else {
+    $self->messages->put(IPC::Simple::Message->new(source => $type, message => $msg));
+  }
 }
 
+#-------------------------------------------------------------------------------
+# Stopping the process and waiting on it to complete
+#-------------------------------------------------------------------------------
 sub terminate {
   my $self = shift;
   if ($self->is_running) {
@@ -446,6 +455,9 @@ sub join {
   $done->recv;
 }
 
+#-------------------------------------------------------------------------------
+# Messages
+#-------------------------------------------------------------------------------
 sub send {
   my ($self, $msg) = @_;
   $self->debug('sending "%s"', $msg);
