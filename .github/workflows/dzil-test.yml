@@ -1,38 +1,49 @@
-name: CI Dzil
- 
+name: linux
+
 on:
-    push:
-        branches: '*'
-    pull_request:
-        branches: '*'
-#   schedule:
-#       - cron: '42 5 * * 0'
- 
+  push:
+    branches:
+      - '*'
+    tags-ignore:
+      - '*'
+  pull_request:
+
 jobs:
-  perl-job:
+  perl:
+    env:
+      # some plugins still needs this to run their tests...
+      PERL_USE_UNSAFE_INC: 0
+      AUTHOR_TESTING: 1
+      AUTOMATED_TESTING: 1
+      RELEASE_TESTING: 1
+
     runs-on: ubuntu-latest
+
     strategy:
       fail-fast: false
       matrix:
         perl-version:
-          - "5.30"
-          - "5.28"
-          - "5.26"
-          - "5.24"
-          - "5.22"
-          - "5.20"
-          - "5.18"
-          - "5.16"
-          - "5.14"
-          - "5.12"
-          - "5.10"
-          - "5.8"
+          - 'latest'
+          - '5.28'
+          - '5.26'
+          - '5.24'
+          - '5.22'
+          - '5.20'
+          - '5.18'
+          - '5.16'
+          - '5.14'
+          - '5.12'
+          - '5.10'
+          - '5.8'
+
     container:
-      image: perldocker/perl-tester:${{ matrix.perl-version }}     # https://hub.docker.com/r/perldocker/perl-tester
-    name: Perl ${{ matrix.perl-version }}
+      image: perldocker/perl-tester:${{ matrix.perl-version }}
+
     steps:
-      - uses: actions/checkout@v2
-      - name: Regular tests
-        run: |
-          dzil listdeps --missing | cpanm -nq
-          prove -lmv t/
+      - uses: actions/checkout@v1
+      - name: perl -V
+        run: perl -V
+      - name: Install Dependencies
+        run: cpm install -g --no-test --show-build-log-on-failure --cpanfile cpanfile
+      - name: Run tests
+        run: prove -lmv t
