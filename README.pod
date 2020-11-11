@@ -15,9 +15,8 @@ version 0.04
   use IPC::Simple;
 
   my $ssh = IPC::Simple->new(
-    cmd  => 'ssh',
-    args => [ $host ],
-    eol  => "\n",
+    cmd => ['ssh', $host],
+    eol => "\n",
   );
 
   if ($ssh->launch) {
@@ -58,11 +57,8 @@ launched; see L</launch>.
 
 =item cmd
 
-The command to launch in a child process.
-
-=item args
-
-An array ref of arguments to C<cmd>.
+The command to launch in a child process. This may be specified as the entire
+command string or as an array ref of the command and its arguments.
 
 =item eol
 

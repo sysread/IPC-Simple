@@ -9,8 +9,7 @@ use IPC::Simple;
 BAIL_OUT 'OS unsupported' if $^O eq 'MSWin32';
 
 my $proc = IPC::Simple->new(
-  cmd  => 'perl',
-  args => ['-e', '$|=1; while (defined(<STDIN>)) { warn "stderr message\n"; print "stdout message\n"; }'],
+  cmd => ['perl', '-e', '$|=1; while (defined(<STDIN>)) { warn "stderr message\n"; print "stdout message\n"; }'],
 );
 
 $proc->launch;

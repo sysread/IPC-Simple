@@ -6,9 +6,8 @@ package IPC::Simple;
   use IPC::Simple;
 
   my $ssh = IPC::Simple->new(
-    cmd  => 'ssh',
-    args => [ $host ],
-    eol  => "\n",
+    cmd => ['ssh', $host],
+    eol => "\n",
   );
 
   if ($ssh->launch) {
@@ -49,11 +48,8 @@ launched; see L</launch>.
 
 =item cmd
 
-The command to launch in a child process.
-
-=item args
-
-An array ref of arguments to C<cmd>.
+The command to launch in a child process. This may be specified as the entire
+command string or as an array ref of the command and its arguments.
 
 =item eol
 
@@ -139,7 +135,7 @@ use AnyEvent::Handle;
 use AnyEvent;
 use Carp;
 use IPC::Open3 qw(open3);
-use Iterator::Simple qw(iter);
+use Iterator::Simple qw(iterator);
 use Moo;
 use POSIX qw(:sys_wait_h);
 use Symbol qw(gensym);
@@ -155,13 +151,8 @@ use constant STATE_STOPPING => 2;
 
 has cmd =>
   is => 'ro',
-  isa => Str,
+  isa => Str | ArrayRef[Str],
   require => 1;
-
-has args =>
-  is => 'ro',
-  isa => ArrayRef[Str],
-  default => sub{ [] };
 
 has eol =>
   is => 'ro',
@@ -238,7 +229,7 @@ sub stdout {
   my $self = shift;
   my $key = '_' . IPC_STDOUT;
   $self->{$key} ||= IPC::Simple::Channel->new;
-  return iter($self->{$key});
+  return $self->{$key};
 }
 
 has _stderr =>
@@ -251,7 +242,7 @@ sub stderr {
   my $self = shift;
   my $key = '_' . IPC_STDERR;
   $self->{$key} ||= IPC::Simple::Channel->new;
-  return iter($self->{$key});
+  return $self->{$key};
 }
 
 has _errors =>
@@ -264,7 +255,7 @@ sub errors {
   my $self = shift;
   my $key = '_' . IPC_ERROR;
   $self->{$key} ||= IPC::Simple::Channel->new;
-  return iter($self->{$key});
+  return $self->{$key};
 }
 
 sub DEMOLISH {
@@ -280,6 +271,12 @@ sub is_ready    { $_[0]->run_state == STATE_READY }
 sub is_running  { $_[0]->run_state == STATE_RUNNING }
 sub is_stopping { $_[0]->run_state == STATE_STOPPING }
 
+sub command {
+  my $self = shift;
+  return $self->cmd if ref $self->cmd;
+  return [$self->cmd];
+}
+
 sub launch {
   my $self = shift;
 
@@ -291,9 +288,11 @@ sub launch {
     croak 'process is terminating';
   }
 
-  debug('launching: %s %s', $self->cmd, "@{$self->args}");
+  my $cmd = $self->command;
 
-  my $pid = open3(my $in, my $out, my $err = gensym, $self->cmd, @{$self->args})
+  debug('launching: %s', "@$cmd");
+
+  my $pid = open3(my $in, my $out, my $err = gensym, @$cmd)
     or croak $!;
 
   debug('process launched with pid %d', $pid);
@@ -462,6 +461,28 @@ sub recv {
   my ($self, $type) = @_;
   debug('waiting on message');
   $self->messages->get;
+}
+
+sub iter {
+  my $self = shift;
+
+  iterator{
+    my $msg = $self->recv;
+
+    unless (defined $msg) {
+      return;
+    }
+
+    if ($msg->error) {
+      croak $msg;
+    }
+    elsif ($msg->stderr) {
+      carp $msg;
+    }
+    elsif ($msg->stdout) {
+      return $msg;
+    }
+  };
 }
 
 1;

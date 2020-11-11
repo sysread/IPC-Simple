@@ -8,7 +8,7 @@ use IPC::Simple;
 
 BAIL_OUT 'OS unsupported' if $^O eq 'MSWin32';
 
-my $proc = IPC::Simple->new(cmd => 'perl', args => ['-e', '$|=1; warn "starting\n"; my $line = <STDIN>; print("$line");']);
+my $proc = IPC::Simple->new(cmd => ['perl', '-e', '$|=1; warn "starting\n"; my $line = <STDIN>; print("$line");']);
 
 # Start a timer to ensure a bug doesn't cause us to run indefinitely
 my $timeout = AnyEvent->timer(
