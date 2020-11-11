@@ -12,12 +12,9 @@ version 0.04
 
 =head1 SYNOPSIS
 
-  use IPC::Simple;
+  use IPC::Simple qw(spawn);
 
-  my $ssh = IPC::Simple->new(
-    cmd => ['ssh', $host],
-    eol => "\n",
-  );
+  my $ssh = spawn ['ssh', $host];
 
   if ($ssh->launch) {
     $ssh->send('ls -lah');          # get directory listing
@@ -43,6 +40,28 @@ version 0.04
 
 Provides a simplified interface for managing and kibbitzing with a child
 process.
+
+=head1 EXPORTS
+
+Nothing is exported by default, but the following subroutines may be requested
+for import.
+
+=head2 spawn
+
+Returns a new C<IPC::Simple> object. The first argument is either the command
+line string or an array ref of the command and its arguments. Any remaining
+arguments are treated as keyword pairs for the constructor.
+
+C<spawn> does I<not> launch the process.
+
+  my $proc = spawn ["echo", "hello world"], eol => "\n";
+
+Is equivalent to:
+
+  my $proc = IPC::Simple->new(
+    cmd => ["echo", "hello world"],
+    eol => "\n",
+  );
 
 =head1 METHODS
 
