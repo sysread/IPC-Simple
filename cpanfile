@@ -13,5 +13,4 @@ requires 'base'             => '0';
 on test => sub{
   requires 'Test::More' => '0';
   requires 'Test::Pod'  => '0';
-  requires 'Guard'      => '0';
 };
