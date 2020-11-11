@@ -105,22 +105,6 @@ abnormal termination).
 Each message returned by C<recv> is an object overloaded so that it can be
 treated as a string as well as providing the following methods:
 
-=head2 async
-
-Schedules a callback for the next line of input to be received, returning
-immediately.
-
-  $proc->async(sub{
-    my $msg = shift;
-
-    if ($msg->stdout) {
-      ...
-    }
-  });
-
-This is done with L<AnyEvent/CONDITION-VARIABLES>, so the same caveats about
-races and dead locks apply. It is up to the caller to manage their event loop.
-
 =over
 
 =item stdout
@@ -156,6 +140,7 @@ use AnyEvent;
 use Carp;
 use IPC::Open3 qw(open3);
 use Moo;
+use POSIX qw(:sys_wait_h);
 use Symbol qw(gensym);
 use Types::Standard -types;
 
@@ -197,6 +182,11 @@ has run_state =>
   is => 'rw',
   isa => Enum[ STATE_READY, STATE_RUNNING, STATE_STOPPING ],
   default => STATE_READY;
+
+after run_state => sub{
+  my $self = shift;
+  debug('run state changed to %d', @_) if @_;
+};
 
 has pid =>
   is => 'rw',
@@ -246,24 +236,54 @@ has exit_code =>
 has messages =>
   is => 'rw',
   isa => InstanceOf['IPC::Simple::Channel'],
+  init_arg => undef;
+
+has _stdout =>
+  is => 'ro',
+  isa => Maybe[InstanceOf['IPC::Simple::Channel']],
   init_arg => undef,
-  handles => {
-    recv => 'get',
-  };
+  predicate => 1;
 
-has sigchld_watcher =>
-  is => 'rw',
-  init_arg => undef;
+sub stdout {
+  my $self = shift;
+  my $key = '_' . IPC_STDOUT;
+  $self->{$key} ||= IPC::Simple::Channel->new;
+  return $self->{$key};
+}
 
-has sigchld_cv =>
-  is => 'rw',
-  isa => InstanceOf['AnyEvent::CondVar'],
-  init_arg => undef;
+has _stderr =>
+  is => 'ro',
+  isa => Maybe[InstanceOf['IPC::Simple::Channel']],
+  init_arg => undef,
+  predicate => 1;
+
+sub stderr {
+  my $self = shift;
+  my $key = '_' . IPC_STDERR;
+  $self->{$key} ||= IPC::Simple::Channel->new;
+  return $self->{$key};
+}
+
+has _errors =>
+  is => 'ro',
+  isa => Maybe[InstanceOf['IPC::Simple::Channel']],
+  init_arg => undef,
+  predicate => 1;
+
+sub errors {
+  my $self = shift;
+  my $key = '_' . IPC_ERROR;
+  $self->{$key} ||= IPC::Simple::Channel->new;
+  return $self->{$key};
+}
 
 sub DEMOLISH {
   my $self = shift;
   $self->terminate;
-  $self->join;
+
+  if ($self->pid) {
+    waitpid $self->pid, 0;
+  }
 }
 
 sub is_ready    { $_[0]->run_state == STATE_READY }
@@ -285,18 +305,6 @@ sub launch {
 
   my $pid = open3(my $in, my $out, my $err = gensym, $self->cmd, @{$self->args})
     or croak $!;
-
-  $self->sigchld_cv(AnyEvent->condvar);
-
-  $self->sigchld_watcher(
-    AnyEvent->child(
-      pid => $pid,
-      cb => sub{
-        my ($pid, $status) = @_;
-        $self->_on_exit($status);
-      },
-    )
-  );
 
   debug('process launched with pid %d', $pid);
 
@@ -350,16 +358,11 @@ sub _build_input_handle {
 
 sub _on_error {
   my ($self, $type, $handle, $fatal, $msg) = @_;
-  debug('recv error type=%d, msg="%s"', $type, $msg);
+  $self->_queue_message(IPC_ERROR, $msg);
 
-  $self->messages->put(
-    IPC::Simple::Message->new(
-      source  => IPC_ERROR,
-      message => $msg,
-    ),
-  );
-
-  $self->terminate if $fatal;
+  if ($fatal) {
+    $self->terminate;
+  }
 }
 
 sub _on_exit {
@@ -376,9 +379,6 @@ sub _on_exit {
 
   $self->messages->shutdown
     if $self->messages; # won't be set if launch failed early enough
-
-  $self->sigchld_cv->send
-    if $self->sigchld_cv;
 }
 
 sub _on_read {
@@ -389,19 +389,28 @@ sub _on_read {
 
 sub _push_read {
   my ($self, $handle, $type) = @_;
-
   $handle->push_read(line => $self->eol, sub{
     my ($handle, $line) = @_;
     chomp $line;
-    debug('recv type=%d, msg="%s"', $type, $line);
+    $self->_queue_message($type, $line);
+  });
+}
 
+sub _queue_message {
+  my ($self, $type, $msg) = @_;
+  my $channel = "_$type";
+  debug('recv type=%s, msg="%s"', $type, $msg);
+
+  if (exists $self->{$channel} && defined $self->{$channel}) {
+    $self->{$channel}->put($msg);
+  } else {
     $self->messages->put(
       IPC::Simple::Message->new(
         source  => $type,
-        message => $line,
+        message => $msg,
       ),
     );
-  });
+  }
 }
 
 sub terminate {
@@ -410,14 +419,46 @@ sub terminate {
     $self->run_state(STATE_STOPPING);
     debug('sending TERM to pid %d', $self->pid);
     kill 'TERM', $self->pid;
+
+    $self->handle_in->push_shutdown;
+    close $self->{fh_in};
+
+    $self->handle_out->push_shutdown;
+    close $self->{fh_out};
+
+    $self->handle_err->push_shutdown;
+    close $self->{fh_err};
   }
 }
 
 sub join {
   my $self = shift;
+
+  return if $self->is_ready;
+
   debug('waiting for process to exit, pid %d', $self->pid);
-  return unless $self->sigchld_cv;
-  $self->sigchld_cv->recv;
+
+  my $done = AnyEvent->condvar;
+
+  my $timer; $timer = AnyEvent->timer(
+    after => 0,
+    interval => 0.01,
+    cb => sub{
+      # non-blocking waitpid returns 0 if the pid is still alive
+      if (waitpid($self->pid, WNOHANG) != 0) {
+        my $status = $?;
+
+        # another waiter might have already called _on_exit
+        unless ($self->is_ready) {
+          $self->_on_exit($?);
+        }
+
+        $done->send;
+      }
+    },
+  );
+
+  $done->recv;
 }
 
 sub send {
@@ -427,23 +468,10 @@ sub send {
   1;
 }
 
-around recv => sub{
-  my $orig = shift;
-  my $self = shift;
+sub recv {
+  my ($self, $type) = @_;
   debug('waiting on message');
-  $self->$orig();
-};
-
-sub async {
-  my ($self, $cb) = @_;
-  my $cv = $self->messages->async;
-  $cv->cb(sub{ $cb->( $cv->recv ) });
-  return;
+  $self->messages->get;
 }
-
-after run_state => sub{
-  my $self = shift;
-  debug('run state changed to %d', @_) if @_;
-};
 
 1;

@@ -10,21 +10,12 @@ use overload fallback => 1,
   '""' => sub{
     my $self = shift;
     return $self->message;
-  },
-  '==' => sub{
-    my ($self, $other, $swap) = @_;
-
-    if ($swap) {
-      ($self, $other) = ($other, $self);
-    }
-
-    return $self->source == $other;
   };
 
-use constant IPC_STDIN  => 0;
-use constant IPC_STDOUT => 1;
-use constant IPC_STDERR => 2;
-use constant IPC_ERROR  => 3;
+use constant IPC_STDIN  => 'stdin';
+use constant IPC_STDOUT => 'stdout';
+use constant IPC_STDERR => 'stderr';
+use constant IPC_ERROR  => 'errors';
 
 BEGIN{
   extends 'Exporter';
@@ -47,8 +38,8 @@ has message =>
   isa => Str,
   required => 1;
 
-sub stdout { $_[0] == IPC_STDOUT }
-sub stderr { $_[0] == IPC_STDERR }
-sub error  { $_[0] == IPC_ERROR }
+sub stdout { $_[0]->source eq IPC_STDOUT }
+sub stderr { $_[0]->source eq IPC_STDERR }
+sub error  { $_[0]->source eq IPC_ERROR }
 
 1;

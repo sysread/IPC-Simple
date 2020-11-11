@@ -5,7 +5,6 @@ use Test::More;
 use AnyEvent;
 use Carp;
 use IPC::Simple;
-use Guard qw(scope_guard);
 
 BAIL_OUT 'OS unsupported' if $^O eq 'MSWin32';
 
@@ -24,11 +23,6 @@ my $timeout = AnyEvent->timer(
   },
 );
 
-scope_guard{
-  undef $timeout; # clear timeout so it won't go off
-};
-
-
 ok $proc->launch, 'launch';
 
 $proc->terminate;
@@ -38,5 +32,7 @@ $proc->join;
 ok $proc->is_ready, 'is_ready';
 
 is $proc->exit_code, 0, 'exit_code';
+
+undef $timeout; # clear timeout so it won't go off
 
 done_testing;

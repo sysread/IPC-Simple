@@ -56,6 +56,11 @@ sub get {
   $self->async->recv;
 }
 
+sub recv {
+  my $self = shift;
+  $self->async->recv;
+}
+
 sub async {
   my $self = shift;
   my $cv = AnyEvent->condvar;
