@@ -4,7 +4,6 @@ use warnings;
 use Test::More;
 use AnyEvent;
 use Carp;
-use Guard qw(scope_guard);
 use IPC::Simple;
 
 BAIL_OUT 'OS unsupported' if $^O eq 'MSWin32';
