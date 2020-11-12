@@ -3,6 +3,7 @@ requires 'AnyEvent::Handle' => '0';
 requires 'AnyEvent::Util'   => '0';
 requires 'Carp'             => '0';
 requires 'Exporter'         => '0';
+requires 'Fcntl'            => '0';
 requires 'IPC::Open3'       => '0';
 requires 'POSIX'            => '0';
 requires 'Symbol'           => '0';
