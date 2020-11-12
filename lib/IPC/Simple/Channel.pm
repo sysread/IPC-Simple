@@ -3,7 +3,7 @@ package IPC::Simple::Channel;
 use strict;
 use warnings;
 
-use AnyEvent;
+use AnyEvent qw();
 
 sub new {
   my ($class) = @_;

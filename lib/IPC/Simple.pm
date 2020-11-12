@@ -162,11 +162,11 @@ Nope.
 use strict;
 use warnings;
 
-use AnyEvent::Handle;
-use AnyEvent;
 use Carp;
+use AnyEvent qw();
+use AnyEvent::Handle qw();
 use IPC::Open3 qw(open3);
-use POSIX qw(:sys_wait_h);
+use POSIX qw();
 use Symbol qw(gensym);
 
 use IPC::Simple::Channel;
@@ -248,7 +248,7 @@ sub DESTROY {
   # Localize globals to avoid affecting global state during shutdown
   local ($., $@, $!, $^E, $?);
 
-  if ($self->{pid} && waitpid($self->{pid}, WNOHANG) == 0) {
+  if ($self->{pid} && waitpid($self->{pid}, POSIX::WNOHANG) == 0) {
     kill 'KILL', $self->{pid};
     waitpid $self->{pid}, 0;
   }
@@ -262,9 +262,11 @@ sub debug {
 
   if ($ENV{IPC_SIMPLE_DEBUG}) {
     my $msg = sprintf shift, @_;
+
     my ($pkg, $file, $line) = caller;
-    my $ts = time;
     my $pid = $self->{pid} || '(ready)';
+    my $ts = time;
+
     warn "<$pkg:$line | $ts | pid:$pid> $msg\n";
   }
 }
@@ -419,7 +421,7 @@ sub join {
     interval => 0.01,
     cb => sub{
       # non-blocking waitpid returns 0 if the pid is still alive
-      if (waitpid($self->{pid}, WNOHANG) != 0) {
+      if (waitpid($self->{pid}, POSIX::WNOHANG) != 0) {
         my $status = $?;
 
         # another waiter might have already called _on_exit
