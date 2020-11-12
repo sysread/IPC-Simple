@@ -6,8 +6,11 @@ use warnings;
 use Carp;
 use Fcntl qw(F_GETFL F_SETFL O_NONBLOCK);
 
-use constant DEFAULT_CHUNK_SIZE => 128;
+use constant DEFAULT_CHUNK_SIZE => 128;  # default read/write size in bytes
 
+#-------------------------------------------------------------------------------
+# Constructor
+#-------------------------------------------------------------------------------
 sub new {
   my ($class, %param) = @_;
   my $fh  = $param{fh}  || croak 'expected parameter "fh"';
@@ -32,6 +35,9 @@ sub new {
 sub is_closed { $_[0]->{closed} }
 sub error     { $_[0]->{error} }
 
+#-------------------------------------------------------------------------------
+# Adds the non-blocking flag to the file handle.
+#-------------------------------------------------------------------------------
 sub set_nonblocking {
   my ($class, $fh) = @_;
 
@@ -44,6 +50,9 @@ sub set_nonblocking {
     or die $!;
 }
 
+#-------------------------------------------------------------------------------
+# Close the filehandle to prevent further reads/writes.
+#-------------------------------------------------------------------------------
 sub close {
   my $self = shift;
 
@@ -52,6 +61,7 @@ sub close {
     $self->{closed} = 1;
   }
 }
+
 #-------------------------------------------------------------------------------
 # Appends $data to the write buffer so that it is available for write_bytes.
 #-------------------------------------------------------------------------------
@@ -73,13 +83,13 @@ sub write_bytes {
   croak 'cannot write to a closed file handle'
     if $self->{closed};
 
-  my $bytes;
-
-  local $SIG{PIPE} = sub{ die "sigpipe\n" };
-  local $SIG{CHLD} = sub{ die "sigchld\n" };
+  # These signals indicate that the child process we are connected to has exited
+  # (or at least closed the pipe on us). In those cases, we want to signal EOF.
+  local $SIG{PIPE} = sub{ die "received SIGPIPE\n" };
+  local $SIG{CHLD} = sub{ die "received SIGCHLD\n" };
 
   if (length $self->{out_buffer} > 0) {
-    $bytes = eval{ syswrite $self->{fh}, $self->{out_buffer}, $size };
+    my $bytes = eval{ syswrite $self->{fh}, $self->{out_buffer}, $size };
 
     # An uncaught error occurred during the write
     if ($@) {
@@ -95,16 +105,15 @@ sub write_bytes {
     elsif ($bytes > 0) {
       substr($self->{out_buffer}, 0, $bytes) = '';
     }
-    # Nothign to do
+    # No bytes written - would have blocked
     else {
-      ;
+      ; # nothing to do
     }
-  }
-  else {
-    $bytes = 0;
+
+    return $bytes;
   }
 
-  return $bytes;
+  return 0;
 }
 
 #-------------------------------------------------------------------------------
@@ -117,6 +126,11 @@ sub read_bytes {
 
   croak 'cannot read from a closed file handle'
     if $self->{closed};
+
+  # These signals indicate that the child process we are connected to has exited
+  # (or at least closed the pipe on us). In those cases, we want to signal EOF.
+  local $SIG{PIPE} = sub{ die "received SIGPIPE\n" };
+  local $SIG{CHLD} = sub{ die "received SIGCHLD\n" };
 
   my $bytes = eval{ sysread $self->{fh}, $self->{in_buffer}, $size, $self->{offset} };
 
@@ -134,7 +148,7 @@ sub read_bytes {
   elsif ($bytes > 0) {
     $self->{offset} += $bytes;
   }
-  # No bytes ready to read
+  # No bytes ready to read - would have blocked
   else {
     ; # nothing to do
   }

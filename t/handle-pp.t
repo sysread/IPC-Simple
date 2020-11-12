@@ -101,7 +101,7 @@ subtest read_bytes => sub{
 
 
 subtest write_bytes => sub{
-  my $pid = open my $fh, '|-', 'perl -e "sleep 1 while <STDIN>"'
+  my $pid = open my $fh, '|-', 'perl -e "1 while <STDIN>"'
     or die $!;
 
   my $handle = IPC::Simple::Handle::PP->new(fh => $fh, eol => "\n");
