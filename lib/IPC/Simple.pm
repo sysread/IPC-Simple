@@ -166,10 +166,8 @@ use AnyEvent::Handle;
 use AnyEvent;
 use Carp;
 use IPC::Open3 qw(open3);
-use Moo;
 use POSIX qw(:sys_wait_h);
 use Symbol qw(gensym);
-use Types::Standard -types;
 
 use IPC::Simple::Channel;
 use IPC::Simple::Message;
@@ -179,85 +177,8 @@ use constant STATE_RUNNING  => 1;
 use constant STATE_STOPPING => 2;
 
 BEGIN{
-  extends 'Exporter';
+  use base 'Exporter';
   our @EXPORT_OK = qw(spawn);
-}
-
-has cmd =>
-  is => 'ro',
-  isa => Str | ArrayRef[Str],
-  require => 1;
-
-sub command {
-  my $self = shift;
-  return $self->cmd if ref $self->cmd;
-  return [$self->cmd];
-}
-
-has eol =>
-  is => 'ro',
-  isa => Str,
-  default => "\n",
-
-has cb =>
-  is => 'ro',
-  isa => Maybe[CodeRef];
-
-has run_state =>
-  is => 'rw',
-  isa => Enum[ STATE_READY, STATE_RUNNING, STATE_STOPPING ],
-  default => STATE_READY;
-
-after run_state => sub{
-  my $self = shift;
-  $self->debug('run state changed to %d', @_) if @_;
-};
-
-has pid =>
-  is => 'rw',
-  isa => Num,
-  init_arg => undef;
-
-has handle_in =>
-  is => 'rw',
-  isa => InstanceOf['AnyEvent::Handle'],
-  init_arg => undef;
-
-has handle_out =>
-  is => 'rw',
-  isa => InstanceOf['AnyEvent::Handle'],
-  init_arg => undef;
-
-has handle_err =>
-  is => 'rw',
-  isa => InstanceOf['AnyEvent::Handle'],
-  init_arg => undef;
-
-has exit_status =>
-  is => 'rw',
-  isa => Maybe[Int],
-  init_arg => undef;
-
-has exit_code =>
-  is => 'rw',
-  isa => Maybe[Int],
-  init_arg => undef;
-
-has messages =>
-  is => 'rw',
-  isa => InstanceOf['IPC::Simple::Channel'],
-  init_arg => undef;
-
-#-------------------------------------------------------------------------------
-# Ensure the process is cleaned up when the object is garbage collected.
-#-------------------------------------------------------------------------------
-sub DEMOLISH {
-  my $self = shift;
-  $self->terminate;
-
-  if ($self->pid) {
-    waitpid $self->pid, 0;
-  }
 }
 
 #-------------------------------------------------------------------------------
@@ -266,6 +187,71 @@ sub DEMOLISH {
 sub spawn ($;%) {
   my ($cmd, @args) = @_;
   return IPC::Simple->new(cmd => $cmd, @args);
+}
+
+#-------------------------------------------------------------------------------
+# Constructor
+#-------------------------------------------------------------------------------
+sub new {
+  my ($class, %param) = @_;
+  my $cmd = ref($param{cmd})    ? $param{cmd} : [$param{cmd}];
+  my $eol = defined $param{eol} ? $param{eol} : "\n";
+  my $cb  = $param{cb};
+
+  bless{
+    cmd         => $cmd,
+    eol         => $eol,
+    cb          => $cb,
+    run_state   => STATE_READY,
+    pid         => undef,
+    handle_in   => undef,
+    handle_out  => undef,
+    handle_err  => undef,
+    exit_status => undef,
+    exit_code   => undef,
+    messages    => undef,
+  }, $class;
+}
+
+#-------------------------------------------------------------------------------
+# State accessor and predicates
+#-------------------------------------------------------------------------------
+sub run_state {
+  my $self = shift;
+
+  if (@_) {
+    my $new_state = shift;
+    $self->debug('run state changed to %d', $new_state);
+    $self->{run_state} = $new_state;
+  }
+
+  return $self->{run_state};
+}
+
+sub is_ready    { $_[0]->run_state == STATE_READY }
+sub is_running  { $_[0]->run_state == STATE_RUNNING }
+sub is_stopping { $_[0]->run_state == STATE_STOPPING }
+
+#-------------------------------------------------------------------------------
+# Other accessors
+#-------------------------------------------------------------------------------
+sub pid         { $_[0]->{pid} }
+sub exit_status { $_[0]->{exit_status} }
+sub exit_code   { $_[0]->{exit_code} }
+
+#-------------------------------------------------------------------------------
+# Ensure the process is cleaned up when the object is garbage collected.
+#-------------------------------------------------------------------------------
+sub DESTROY {
+  my $self = shift;
+
+  # Localize globals to avoid affecting global state during shutdown
+  local ($., $@, $!, $^E, $?);
+
+  if ($self->{pid} && waitpid($self->{pid}, WNOHANG) == 0) {
+    kill 'KILL', $self->{pid};
+    waitpid $self->{pid}, 0;
+  }
 }
 
 #-------------------------------------------------------------------------------
@@ -278,17 +264,10 @@ sub debug {
     my $msg = sprintf shift, @_;
     my ($pkg, $file, $line) = caller;
     my $ts = time;
-    my $pid = $self->pid || '(ready)';
+    my $pid = $self->{pid} || '(ready)';
     warn "<$pkg:$line | $ts | pid:$pid> $msg\n";
   }
 }
-
-#-------------------------------------------------------------------------------
-# State predicates
-#-------------------------------------------------------------------------------
-sub is_ready    { $_[0]->run_state == STATE_READY }
-sub is_running  { $_[0]->run_state == STATE_RUNNING }
-sub is_stopping { $_[0]->run_state == STATE_STOPPING }
 
 #-------------------------------------------------------------------------------
 # Launch and helpers
@@ -304,7 +283,7 @@ sub launch {
     croak 'process is terminating';
   }
 
-  my $cmd = $self->command;
+  my $cmd = $self->{cmd};
 
   $self->debug('launching: %s', "@$cmd");
 
@@ -314,13 +293,14 @@ sub launch {
   $self->debug('process launched with pid %d', $pid);
 
   $self->run_state(STATE_RUNNING);
-  $self->exit_status(undef);
-  $self->exit_code(undef);
-  $self->pid($pid);
-  $self->messages(IPC::Simple::Channel->new);
-  $self->handle_err($self->_build_input_handle($err, IPC_STDERR));
-  $self->handle_out($self->_build_input_handle($out, IPC_STDOUT));
-  $self->handle_in($self->_build_output_handle($in));
+
+  $self->{exit_status} = undef;
+  $self->{exit_code}   = undef;
+  $self->{pid}         = $pid;
+  $self->{messages}    = IPC::Simple::Channel->new;
+  $self->{handle_err}  = $self->_build_input_handle($err, IPC_STDERR);
+  $self->{handle_out}  = $self->_build_input_handle($out, IPC_STDOUT);
+  $self->{handle_in}   = $self->_build_output_handle($in);
 
   return 1;
 }
@@ -370,17 +350,17 @@ sub _on_error {
 sub _on_exit {
   my ($self, $status) = @_;
   $self->run_state(STATE_READY);
-  $self->exit_status($status || 0);
-  $self->exit_code($self->exit_status >> 8);
+  $self->{exit_status} = $status || 0;
+  $self->{exit_code} = $self->{exit_status} >> 8;
 
   $self->debug('child (pid %s) exited with status %d (exit code: %d)',
-    $self->pid || '(no pid)',
-    $self->exit_status,
-    $self->exit_code,
+    $self->{pid} || '(no pid)',
+    $self->{exit_status},
+    $self->{exit_code},
   );
 
-  $self->messages->shutdown
-    if $self->messages; # won't be set if launch failed early enough
+  $self->{messages}->shutdown
+    if $self->{messages}; # won't be set if launch failed early enough
 }
 
 sub _on_read {
@@ -391,7 +371,7 @@ sub _on_read {
 
 sub _push_read {
   my ($self, $handle, $type) = @_;
-  $handle->push_read(line => $self->eol, sub{
+  $handle->push_read(line => $self->{eol}, sub{
     my ($handle, $line) = @_;
     chomp $line;
     $self->_queue_message($type, $line);
@@ -402,10 +382,10 @@ sub _queue_message {
   my ($self, $type, $msg) = @_;
   $self->debug('buffered type=%s, msg="%s"', $type, $msg);
 
-  if ($self->cb) {
-    $self->cb->($self, IPC::Simple::Message->new(source => $type, message => $msg));
+  if ($self->{cb}) {
+    $self->{cb}->($self, IPC::Simple::Message->new(source => $type, message => $msg));
   } else {
-    $self->messages->put(IPC::Simple::Message->new(source => $type, message => $msg));
+    $self->{messages}->put(IPC::Simple::Message->new(source => $type, message => $msg));
   }
 }
 
@@ -416,12 +396,12 @@ sub terminate {
   my $self = shift;
   if ($self->is_running) {
     $self->run_state(STATE_STOPPING);
-    $self->debug('sending TERM to pid %d', $self->pid);
-    kill 'TERM', $self->pid;
+    $self->debug('sending TERM to pid %d', $self->{pid});
+    kill 'TERM', $self->{pid};
 
-    $self->handle_in->push_shutdown;
-    $self->handle_out->push_shutdown;
-    $self->handle_err->push_shutdown;
+    $self->{handle_in}->push_shutdown;
+    $self->{handle_out}->push_shutdown;
+    $self->{handle_err}->push_shutdown;
   }
 }
 
@@ -430,7 +410,7 @@ sub join {
 
   return if $self->is_ready;
 
-  $self->debug('waiting for process to exit, pid %d', $self->pid);
+  $self->debug('waiting for process to exit, pid %d', $self->{pid});
 
   my $done = AnyEvent->condvar;
 
@@ -439,7 +419,7 @@ sub join {
     interval => 0.01,
     cb => sub{
       # non-blocking waitpid returns 0 if the pid is still alive
-      if (waitpid($self->pid, WNOHANG) != 0) {
+      if (waitpid($self->{pid}, WNOHANG) != 0) {
         my $status = $?;
 
         # another waiter might have already called _on_exit
@@ -461,14 +441,14 @@ sub join {
 sub send {
   my ($self, $msg) = @_;
   $self->debug('sending "%s"', $msg);
-  $self->handle_in->push_write($msg . $self->eol);
+  $self->{handle_in}->push_write($msg . $self->{eol});
   1;
 }
 
 sub recv {
   my ($self, $type) = @_;
-  $self->debug('waiting on message from pid %d', $self->pid);
-  $self->messages->get;
+  $self->debug('waiting on message from pid %d', $self->{pid});
+  $self->{messages}->get;
 }
 
 1;
