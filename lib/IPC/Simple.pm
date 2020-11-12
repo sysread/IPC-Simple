@@ -416,6 +416,22 @@ sub join {
 
   my $done = AnyEvent->condvar;
 
+  #-----------------------------------------------------------------------------
+  # SIGCHLD watchers are unreliable on some perls (and completely broken on
+  # win32). There is also a race condition due to needing the pid in order to
+  # create the observer; if the process exits before the watcher is created, it
+  # will wait indefinitely for a process that doesn't exist (why don't event
+  # loops 't just immediately trigger watchers for non-existant pids? yeesh!).
+  #
+  # I suppose I *could* fork a new process which does a blocking waitpid and
+  # then spits the result into a shared pipe, but that's a pretty heavy
+  # solution for something that *ought* to be simple.
+  #
+  # waitpid() works fine on most platforms, but blocking calls to waitpid
+  # interfere with event loops. Instead, IPC::Simple will just poll with a non-
+  # blocking call to waitpid on an interval timer and hope its fast enough for
+  # everyone's taste.
+  #-----------------------------------------------------------------------------
   my $timer; $timer = AnyEvent->timer(
     after => 0,
     interval => 0.01,
@@ -424,7 +440,7 @@ sub join {
       if (waitpid($self->{pid}, WNOHANG) != 0) {
         my $status = $?;
 
-        # another waiter might have already called _on_exit
+        # Another waiter might have already called _on_exit
         unless ($self->is_ready) {
           $self->_on_exit($?);
         }
