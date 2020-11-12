@@ -135,6 +135,7 @@ subtest write_bytes => sub{
 #    like $handle->error, qr/bad file descriptor/i, 'error';
 #  };
 
+  $handle->close;
   eval{ $handle->write_bytes };
   like $@, qr/cannot write to a closed file handle/, 'closed handle';
 };
