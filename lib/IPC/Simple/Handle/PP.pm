@@ -71,10 +71,11 @@ sub queue_write {
 }
 
 #-------------------------------------------------------------------------------
-# Writes up to DEFAULT_CHUNK_SIZE bytes to the file handle and removes them
-# from the out_buffer. If fewer bytes are available to write or the handle is
-# unable to receive that many bytes, only those bytes that are written are
-# removed from the buffer.
+# Because writes rarely block, this writes as much of the output buffer as
+# possible in chunks of DEFAULT_CHUNKS_SIZE bytes at a time.  If fewer bytes
+# are available to write or the handle is unable to receive that many bytes,
+# only those bytes that are written are removed from the buffer. Returns the
+# number of bytes written, or undef on error.
 #-------------------------------------------------------------------------------
 sub write_bytes {
   my $self = shift;
@@ -118,7 +119,8 @@ sub write_bytes {
 
 #-------------------------------------------------------------------------------
 # Reads up to DEFAULT_CHUNK_SIZE off the file handle and appends them to
-# $self->{in_buffer}, increasing $self->{offset} accordingly.
+# $self->{in_buffer}, increasing $self->{offset} accordingly. Returns the
+# number of bytes written, or undef on error.
 #-------------------------------------------------------------------------------
 sub read_bytes {
   my $self = shift;
