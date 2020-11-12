@@ -1,4 +1,4 @@
-package IPC::Simple::Handle::PP;
+package IPC::Simple::Handle;
 
 use strict;
 use warnings;

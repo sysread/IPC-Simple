@@ -2,7 +2,7 @@ use strict;
 use warnings;
 
 use Test::More;
-use IPC::Simple::Handle::PP;
+use IPC::Simple::Handle;
 
 BAIL_OUT 'OS unsupported' if $^O eq 'MSWin32';
 
@@ -14,7 +14,7 @@ subtest flush => sub{
   };
 
   subtest 'empty buffer' => sub{
-    is_deeply IPC::Simple::Handle::PP::flush($mock), [], 'result';
+    is_deeply IPC::Simple::Handle::flush($mock), [], 'result';
     is $mock->{in_buffer}, '', 'in_buffer';
     is $mock->{offset}, 0, 'offset';
   };
@@ -23,7 +23,7 @@ subtest flush => sub{
     $mock->{in_buffer} = 'a';
     $mock->{offset} = 1;
 
-    is_deeply IPC::Simple::Handle::PP::flush($mock), [], 'result';
+    is_deeply IPC::Simple::Handle::flush($mock), [], 'result';
     is $mock->{in_buffer}, 'a', 'in_buffer';
     is $mock->{offset}, 1, 'offset';
   };
@@ -32,7 +32,7 @@ subtest flush => sub{
     $mock->{in_buffer} = 'fnord:';
     $mock->{offset} = 6;
 
-    is_deeply IPC::Simple::Handle::PP::flush($mock), ['fnord'], 'result';
+    is_deeply IPC::Simple::Handle::flush($mock), ['fnord'], 'result';
     is $mock->{in_buffer}, '', 'in_buffer';
     is $mock->{offset}, 0, 'offset';
   };
@@ -41,7 +41,7 @@ subtest flush => sub{
     $mock->{in_buffer} = 'fnord:slack:';
     $mock->{offset} = 12;
 
-    is_deeply IPC::Simple::Handle::PP::flush($mock), ['fnord', 'slack'], 'result';
+    is_deeply IPC::Simple::Handle::flush($mock), ['fnord', 'slack'], 'result';
     is $mock->{in_buffer}, '', 'in_buffer';
     is $mock->{offset}, 0, 'offset';
   };
@@ -50,7 +50,7 @@ subtest flush => sub{
     $mock->{in_buffer} = 'fnord:slack:qwerty';
     $mock->{offset} = 18;
 
-    is_deeply IPC::Simple::Handle::PP::flush($mock), ['fnord', 'slack'], 'result';
+    is_deeply IPC::Simple::Handle::flush($mock), ['fnord', 'slack'], 'result';
     is $mock->{in_buffer}, 'qwerty', 'in_buffer';
     is $mock->{offset}, 6, 'offset';
   };
@@ -61,7 +61,7 @@ subtest read_bytes => sub{
   my $pid = open my $fh, '-|', 'perl -e "$|=1; print qq{fnord\n};"'
     or die $!;
 
-  my $handle = IPC::Simple::Handle::PP->new(fh => $fh, eol => "\n");
+  my $handle = IPC::Simple::Handle->new(fh => $fh, eol => "\n");
 
   waitpid $pid, 0;
 
@@ -104,7 +104,7 @@ subtest write_bytes => sub{
   my $pid = open my $fh, '|-', 'perl -e "1 while <STDIN>"'
     or die $!;
 
-  my $handle = IPC::Simple::Handle::PP->new(fh => $fh, eol => "\n");
+  my $handle = IPC::Simple::Handle->new(fh => $fh, eol => "\n");
 
   is $handle->write_bytes, 0, 'nothing to write';
 
