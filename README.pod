@@ -84,6 +84,18 @@ command string or as an array ref of the command and its arguments.
 The end-of-line character to print at the end of each call to L</send>.
 Defaults to C<"\n">.
 
+=item cb
+
+Optionally, a callback may be specified to receive messages as they arrive.
+
+  my $proc = spawn [...], cb => sub{
+    my ($proc, $msg) = @_;
+    ...
+  };
+
+  $proc->launch;
+  $proc->join;
+
 =back
 
 =head2 pid
