@@ -1,6 +1,8 @@
 {{$NEXT}}
 - NOTE: there are backward incompatible changes to the API in this release
 - Add importable convenience constructor spawn()
+- Add importable process_group() to process a combined queue of messages for a
+  group of related processes
 - Removes args constructor parameter; instead, cmd accepts either a complete
   command string or an array ref of the command and its arguments
 - Removes IPC::Simple->async; it was unreliable and of dubious value

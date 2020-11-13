@@ -54,6 +54,23 @@ Is equivalent to:
     eol => "\n",
   );
 
+=head2 process_group
+
+Builds a combined message queue for a group of I<unlaunched> C<IPC::Simple>
+objects that may be used to process all of the group's messages together.
+
+  my $group = process_group(
+    spawn('...', name => 'foo'),
+    spawn('...', name => 'bar'),
+    spawn('...', name => 'baz'),
+  );
+
+  while (my $msg = $group->recv) {
+    if ($msg->proc->name eq 'foo') {
+      ...
+    }
+  }
+
 =head1 METHODS
 
 =head1 new
@@ -69,6 +86,12 @@ launched; see L</launch>.
 
 The command to launch in a child process. This may be specified as the entire
 command string or as an array ref of the command and its arguments.
+
+=item name
+
+Optionally specify a name for this process. This is useful when grouping
+processes together to identify the source of a message. If not provided, the
+command string is used by default.
 
 =item eol
 
@@ -135,6 +158,10 @@ treated as a string as well as providing the following methods:
 
 =over
 
+=item source
+
+The C<IPC::Simple> object from which the message originated.
+
 =item stdout
 
 True when the message came from the child process' C<STDOUT>.
@@ -179,7 +206,10 @@ use constant STATE_STOPPING => 2;
 
 BEGIN{
   use base 'Exporter';
-  our @EXPORT_OK = qw(spawn);
+  our @EXPORT_OK = qw(
+    spawn
+    process_group
+  );
 }
 
 #-------------------------------------------------------------------------------
@@ -188,6 +218,23 @@ BEGIN{
 sub spawn ($;%) {
   my ($cmd, @args) = @_;
   return IPC::Simple->new(cmd => $cmd, @args);
+}
+
+sub process_group {
+  my @procs = @_;
+  my $shared = IPC::Simple::Channel->new;
+
+  for (@procs) {
+    croak 'processes must be grouped *before* launching them'
+      unless $_->is_ready;
+  }
+
+  for (@procs) {
+    $_->{messages} = $shared;
+    $_->launch;
+  }
+
+  return $shared;
 }
 
 #-------------------------------------------------------------------------------
@@ -303,10 +350,10 @@ sub launch {
   $self->{exit_status} = undef;
   $self->{exit_code}   = undef;
   $self->{pid}         = $pid;
-  $self->{messages}    = IPC::Simple::Channel->new;
   $self->{handle_err}  = $self->_build_input_handle($err, IPC_STDERR);
   $self->{handle_out}  = $self->_build_input_handle($out, IPC_STDOUT);
   $self->{handle_in}   = $self->_build_output_handle($in);
+  $self->{messages}    ||= IPC::Simple::Channel->new; # can be set ahead of time by process_group()
 
   return 1;
 }

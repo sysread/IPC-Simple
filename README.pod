@@ -63,6 +63,23 @@ Is equivalent to:
     eol => "\n",
   );
 
+=head2 process_group
+
+Builds a combined message queue for a group of I<unlaunched> C<IPC::Simple>
+objects that may be used to process all of the group's messages together.
+
+  my $group = process_group(
+    spawn('...', name => 'foo'),
+    spawn('...', name => 'bar'),
+    spawn('...', name => 'baz'),
+  );
+
+  while (my $msg = $group->recv) {
+    if ($msg->proc->name eq 'foo') {
+      ...
+    }
+  }
+
 =head1 METHODS
 
 =head1 new
@@ -78,6 +95,12 @@ launched; see L</launch>.
 
 The command to launch in a child process. This may be specified as the entire
 command string or as an array ref of the command and its arguments.
+
+=item name
+
+Optionally specify a name for this process. This is useful when grouping
+processes together to identify the source of a message. If not provided, the
+command string is used by default.
 
 =item eol
 
@@ -143,6 +166,10 @@ Each message returned by C<recv> is an object overloaded so that it can be
 treated as a string as well as providing the following methods:
 
 =over
+
+=item source
+
+The C<IPC::Simple> object from which the message originated.
 
 =item stdout
 
