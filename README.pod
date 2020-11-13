@@ -89,7 +89,8 @@ Defaults to C<"\n">.
 Optionally, a callback may be specified to receive messages as they arrive.
 
   my $proc = spawn [...], cb => sub{
-    my ($proc, $msg) = @_;
+    my ($msg) = @_;
+    my $proc = $msg->source;
     ...
   };
 

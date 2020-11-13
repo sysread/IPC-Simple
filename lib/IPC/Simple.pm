@@ -80,7 +80,8 @@ Defaults to C<"\n">.
 Optionally, a callback may be specified to receive messages as they arrive.
 
   my $proc = spawn [...], cb => sub{
-    my ($proc, $msg) = @_;
+    my ($msg) = @_;
+    my $proc = $msg->source;
     ...
   };
 
@@ -194,11 +195,13 @@ sub spawn ($;%) {
 #-------------------------------------------------------------------------------
 sub new {
   my ($class, %param) = @_;
-  my $cmd = ref($param{cmd})    ? $param{cmd} : [$param{cmd}];
-  my $eol = defined $param{eol} ? $param{eol} : "\n";
-  my $cb  = $param{cb};
+  my $cmd  = ref $param{cmd} ? $param{cmd} : [ $param{cmd} ];
+  my $eol  = defined $param{eol} ? $param{eol} : "\n";
+  my $name = $param{name} || "@$cmd";
+  my $cb   = $param{cb};
 
   bless{
+    name        => $name,
     cmd         => $cmd,
     eol         => $eol,
     cb          => $cb,
@@ -235,6 +238,7 @@ sub is_stopping { $_[0]->run_state == STATE_STOPPING }
 #-------------------------------------------------------------------------------
 # Other accessors
 #-------------------------------------------------------------------------------
+sub name        { $_[0]->{name} }
 sub pid         { $_[0]->{pid} }
 sub exit_status { $_[0]->{exit_status} }
 sub exit_code   { $_[0]->{exit_code} }
@@ -384,10 +388,16 @@ sub _queue_message {
   my ($self, $type, $msg) = @_;
   $self->debug('buffered type=%s, msg="%s"', $type, $msg);
 
+  my $message = IPC::Simple::Message->new(
+    source  => $self,
+    type    => $type,
+    message => $msg,
+  );
+
   if ($self->{cb}) {
-    $self->{cb}->($self, IPC::Simple::Message->new(source => $type, message => $msg));
+    $self->{cb}->($self, $message);
   } else {
-    $self->{messages}->put(IPC::Simple::Message->new(source => $type, message => $msg));
+    $self->{messages}->put($message);
   }
 }
 

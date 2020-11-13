@@ -27,14 +27,15 @@ sub new {
 
   bless{
     source  => $param{source},
+    type    => $param{type},
     message => $param{message},
   }, $class;
 }
 
-sub source  { $_[0]->{source} }
+sub type    { $_[0]->{type} }
 sub message { $_[0]->{message} }
-sub stdout  { $_[0]->source eq IPC_STDOUT }
-sub stderr  { $_[0]->source eq IPC_STDERR }
-sub error   { $_[0]->source eq IPC_ERROR }
+sub stdout  { $_[0]->type eq IPC_STDOUT }
+sub stderr  { $_[0]->type eq IPC_STDERR }
+sub error   { $_[0]->type eq IPC_ERROR }
 
 1;
