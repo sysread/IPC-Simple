@@ -1,6 +1,8 @@
 use strict;
 use warnings;
 
+BEGIN{ $ENV{PERL_ANYEVENT_MODEL} = 'Perl' }
+
 use Test::More;
 use AnyEvent;
 use Carp;

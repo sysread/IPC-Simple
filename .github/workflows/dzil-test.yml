@@ -16,6 +16,7 @@ jobs:
       AUTHOR_TESTING: 1
       AUTOMATED_TESTING: 1
       RELEASE_TESTING: 1
+      PERL_ANYEVENT_MODEL: Perl
 
     runs-on: ubuntu-latest
 
