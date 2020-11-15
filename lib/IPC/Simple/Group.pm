@@ -1,4 +1,48 @@
 package IPC::Simple::Group;
+# ABSTRACT: work with several processes as a group
+
+=head1 DESCRIPTION
+
+The constructor for this class should be considered private, and the semantics
+for instantiating this class may change.
+
+Instead, use L<IPC::Simple/process_group> to create process groups.
+
+Also note that processes being added to a group must fit the following criteria:
+
+=over
+
+=item not yet launched
+
+=item no recv_cb
+
+=item no term_cb
+
+=back
+
+=head1 METHODS
+
+=head2 members
+
+Returns the unordered list of L<IPC::Simple> processes within this group.
+
+=head2 launch
+
+Launches all of the processes in this group.
+
+=head2 terminate
+
+Terminates all of the processes in this group.
+
+=head2 join
+
+Blocks until all of the processes in this group have terminated.
+
+=head2 recv
+
+Returns the next message to be received from one of the processes in this group.
+
+=cut
 
 use strict;
 use warnings;

@@ -1,4 +1,36 @@
 package IPC::Simple::Message;
+# ABSTRACT: a message received from an IPC::Simple process
+
+=head1 METHODS
+
+=head2 source
+
+Returns the L<IPC::Simple> process from which this message was received.
+
+=head2 message
+
+Returns the string content of the message.
+
+=head2 stdout
+
+Returns true if this message was received from the child process' C<STDOUT>.
+
+=head2 stderr
+
+Returns true if this message was received from the child process' C<STDERR>.
+
+=head2 error
+
+Returns true if this message was generated as a result of a process
+communication error (e.g. C<SIGPIPE>).
+
+=head1 OVERLOADED
+
+=head2 stringification ("")
+
+Returns the L</message> string.
+
+=cut
 
 use strict;
 use warnings;

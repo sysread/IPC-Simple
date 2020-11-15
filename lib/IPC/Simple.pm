@@ -58,6 +58,7 @@ Is equivalent to:
 
 Builds a combined message queue for a group of I<unlaunched> C<IPC::Simple>
 objects that may be used to process all of the group's messages together.
+Returns an L<IPC::Simple::Group>.
 
   my $group = process_group(
     spawn('...', name => 'foo'),
@@ -115,8 +116,6 @@ Optionally, a callback may be specified to receive messages as they arrive.
 
   $proc->launch;
   $proc->join;
-
-=back
 
 =item term_cb
 
@@ -176,7 +175,8 @@ an I/O error while communicating with the process (e.g. a C<SIGPIPE> or
 abnormal termination).
 
 Each message returned by C<recv> is an object overloaded so that it can be
-treated as a string as well as providing the following methods:
+treated as a string as well as a L<IPC::Simple::Message> with the following
+significant methods:
 
 =over
 
