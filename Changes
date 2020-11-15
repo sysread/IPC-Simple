@@ -1,4 +1,6 @@
 {{$NEXT}}
+
+0.04 2020-11-15
 - NOTE: there are backward incompatible changes to the API in this release
 - New: importable convenience constructor spawn()
 - New: importable process_group() to process a combined queue of messages for a
