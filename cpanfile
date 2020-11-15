@@ -7,6 +7,7 @@ requires 'IPC::Open3'       => '0';
 requires 'POSIX'            => '0';
 requires 'Symbol'           => '0';
 requires 'base'             => '0';
+requires 'overload'         => '0';
 
 on test => sub{
   requires 'Test::More' => '0';
