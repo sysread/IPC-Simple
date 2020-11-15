@@ -6,8 +6,6 @@
 - Removes args constructor parameter; instead, cmd accepts either a complete
   command string or an array ref of the command and its arguments
 - Removes IPC::Simple->async; it was unreliable and of dubious value
-- Caller may request individual channels for stdout, stderr, and errors;
-  messages for any that are not requested fallback to the combined channel
 
 0.03 2020-11-10
 - Drop pretense of win32 support
