@@ -65,11 +65,16 @@ objects that may be used to process all of the group's messages together.
     spawn('...', name => 'baz'),
   );
 
+  $group->launch;
+
   while (my $msg = $group->recv) {
-    if ($msg->proc->name eq 'foo') {
+    if ($msg->source->name eq 'foo') {
       ...
     }
   }
+
+  $group->terminate;
+  $group->join;
 
 =head1 METHODS
 
@@ -98,18 +103,35 @@ command string is used by default.
 The end-of-line character to print at the end of each call to L</send>.
 Defaults to C<"\n">.
 
-=item cb
+=item recv_cb
 
 Optionally, a callback may be specified to receive messages as they arrive.
 
-  my $proc = spawn [...], cb => sub{
-    my ($msg) = @_;
+  my $proc = spawn [...], recv_cb => sub{
+    my $msg = shift;
     my $proc = $msg->source;
     ...
   };
 
   $proc->launch;
   $proc->join;
+
+=back
+
+=item term_cb
+
+Another optional callback to be triggered when the process is terminated. The
+exit status and exit code are available once the L</join> method has been
+called on the process object passed to the callback.
+
+  my $proc = spawn [...], term_cb => sub{
+    my $proc = shift;
+    $proc->join;
+
+    my $code = $proc->exit_code;
+    my $status = $proc->exit_status;
+    ...
+  };
 
 =back
 
@@ -197,7 +219,8 @@ use IPC::Open3 qw(open3);
 use POSIX qw(:sys_wait_h);
 use Symbol qw(gensym);
 
-use IPC::Simple::Channel;
+use IPC::Simple::Channel qw();
+use IPC::Simple::Group qw();
 use IPC::Simple::Message;
 
 use constant STATE_READY    => 0;
@@ -221,20 +244,7 @@ sub spawn ($;%) {
 }
 
 sub process_group {
-  my @procs = @_;
-  my $shared = IPC::Simple::Channel->new;
-
-  for (@procs) {
-    croak 'processes must be grouped *before* launching them'
-      unless $_->is_ready;
-  }
-
-  for (@procs) {
-    $_->{messages} = $shared;
-    $_->launch;
-  }
-
-  return $shared;
+  return IPC::Simple::Group->new(@_);
 }
 
 #-------------------------------------------------------------------------------
@@ -242,16 +252,18 @@ sub process_group {
 #-------------------------------------------------------------------------------
 sub new {
   my ($class, %param) = @_;
-  my $cmd  = ref $param{cmd} ? $param{cmd} : [ $param{cmd} ];
-  my $eol  = defined $param{eol} ? $param{eol} : "\n";
-  my $name = $param{name} || "@$cmd";
-  my $cb   = $param{cb};
+  my $cmd     = ref $param{cmd} ? $param{cmd} : [ $param{cmd} ];
+  my $eol     = defined $param{eol} ? $param{eol} : "\n";
+  my $name    = $param{name} || "@$cmd";
+  my $recv_cb = $param{recv_cb};
+  my $term_cb = $param{term_cb};
 
   bless{
     name        => $name,
     cmd         => $cmd,
     eol         => $eol,
-    cb          => $cb,
+    recv_cb     => $recv_cb,
+    term_cb     => $term_cb,
     run_state   => STATE_READY,
     pid         => undef,
     handle_in   => undef,
@@ -353,7 +365,7 @@ sub launch {
   $self->{handle_err}  = $self->_build_input_handle($err, IPC_STDERR);
   $self->{handle_out}  = $self->_build_input_handle($out, IPC_STDOUT);
   $self->{handle_in}   = $self->_build_output_handle($in);
-  $self->{messages}    ||= IPC::Simple::Channel->new; # can be set ahead of time by process_group()
+  $self->{messages}    = IPC::Simple::Channel->new;
 
   return 1;
 }
@@ -441,8 +453,8 @@ sub _queue_message {
     message => $msg,
   );
 
-  if ($self->{cb}) {
-    $self->{cb}->($self, $message);
+  if ($self->{recv_cb}) {
+    $self->{recv_cb}->($message);
   } else {
     $self->{messages}->put($message);
   }
@@ -461,6 +473,10 @@ sub terminate {
     $self->{handle_in}->push_shutdown;
     $self->{handle_out}->push_shutdown;
     $self->{handle_err}->push_shutdown;
+
+    if ($self->{term_cb}) {
+      $self->{term_cb}->($self);
+    }
   }
 }
 

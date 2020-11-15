@@ -33,6 +33,7 @@ sub new {
 }
 
 sub type    { $_[0]->{type} }
+sub source  { $_[0]->{source} }
 sub message { $_[0]->{message} }
 sub stdout  { $_[0]->type eq IPC_STDOUT }
 sub stderr  { $_[0]->type eq IPC_STDERR }
