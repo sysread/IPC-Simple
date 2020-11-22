@@ -1,4 +1,6 @@
 {{$NEXT}}
+
+0.05 2020-11-22
 - Set min version of AnyEvent to 7.11 when AnyEvent::fh_unblock was added
 
 0.04 2020-11-15
