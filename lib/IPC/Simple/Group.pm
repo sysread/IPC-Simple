@@ -32,11 +32,13 @@ Launches all of the processes in this group.
 
 =head2 terminate
 
-Terminates all of the processes in this group.
+Terminates all of the processes in this group. Arguments are forwarded to
+L<IPC::Simple/terminate>.
 
 =head2 signal
 
-Sends a signal to all members of the group.
+Sends a signal to all members of the group. Arguments are forwarded to
+L<IPC::Simple/signal>.
 
   $group->signal('HUP');
 

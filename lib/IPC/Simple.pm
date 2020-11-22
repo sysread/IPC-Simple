@@ -156,7 +156,8 @@ the process.
 =head2 terminate
 
 Sends the child process a C<SIGTERM>. Returns immediately. Use L</join> to wait
-for the process to finish.
+for the process to finish. An optional timeout may be specified in fractional
+seconds, after which the child process is issued a C<SIGKILL>.
 
 =head2 signal
 
