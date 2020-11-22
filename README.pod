@@ -164,8 +164,15 @@ the process.
 
 =head2 terminate
 
-Sends the child process a `SIGTERM`. Returns immediately. Use L</join> to wait
+Sends the child process a C<SIGTERM>. Returns immediately. Use L</join> to wait
 for the process to finish.
+
+=head2 signal
+
+Sends a signal to the child process. Accepts a single argument, the signal type
+to send.
+
+  $proc->signal('TERM');
 
 =head2 join
 

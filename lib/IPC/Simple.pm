@@ -155,8 +155,15 @@ the process.
 
 =head2 terminate
 
-Sends the child process a `SIGTERM`. Returns immediately. Use L</join> to wait
+Sends the child process a C<SIGTERM>. Returns immediately. Use L</join> to wait
 for the process to finish.
+
+=head2 signal
+
+Sends a signal to the child process. Accepts a single argument, the signal type
+to send.
+
+  $proc->signal('TERM');
 
 =head2 join
 
@@ -461,14 +468,25 @@ sub _queue_message {
 }
 
 #-------------------------------------------------------------------------------
+# Send a signal to the process
+#-------------------------------------------------------------------------------
+sub signal {
+  my ($self, $signal) = @_;
+  if ($self->{pid}) {
+    $self->debug('sending %s to pid %d', $signal, $self->{pid});
+    kill $signal, $self->{pid};
+  }
+}
+
+#-------------------------------------------------------------------------------
 # Stopping the process and waiting on it to complete
 #-------------------------------------------------------------------------------
 sub terminate {
   my $self = shift;
+
   if ($self->is_running) {
+    $self->signal('TERM');
     $self->run_state(STATE_STOPPING);
-    $self->debug('sending TERM to pid %d', $self->{pid});
-    kill 'TERM', $self->{pid};
 
     $self->{handle_in}->push_shutdown;
     $self->{handle_out}->push_shutdown;
