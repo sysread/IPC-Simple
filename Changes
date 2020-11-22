@@ -1,4 +1,6 @@
 {{$NEXT}}
+- New: method signal() added
+- New: terminate() now accepts $timeout after which child process is killed
 
 0.05 2020-11-22
 - Set min version of AnyEvent to 7.11 when AnyEvent::fh_unblock was added
