@@ -279,6 +279,7 @@ sub new {
     exit_status => undef,
     exit_code   => undef,
     messages    => undef,
+    kill_timer  => undef,
   }, $class;
 }
 
@@ -368,6 +369,7 @@ sub launch {
 
   $self->{exit_status} = undef;
   $self->{exit_code}   = undef;
+  $self->{kill_timer}  = undef;
   $self->{pid}         = $pid;
   $self->{handle_err}  = $self->_build_input_handle($err, IPC_STDERR);
   $self->{handle_out}  = $self->_build_input_handle($out, IPC_STDOUT);
@@ -421,6 +423,7 @@ sub _on_error {
 
 sub _on_exit {
   my ($self, $status) = @_;
+  undef $self->{kill_timer};
   $self->run_state(STATE_READY);
   $self->{exit_status} = $status || 0;
   $self->{exit_code} = $self->{exit_status} >> 8;
@@ -431,8 +434,10 @@ sub _on_exit {
     $self->{exit_code},
   );
 
-  $self->{messages}->shutdown
-    if $self->{messages}; # won't be set if launch failed early enough
+  # May not be set yet if launch fails early enough
+  if ($self->{messages}) {
+    $self->{messages}->shutdown;
+  }
 }
 
 sub _on_read {
@@ -483,6 +488,7 @@ sub signal {
 #-------------------------------------------------------------------------------
 sub terminate {
   my $self = shift;
+  my $timeout = shift;
 
   if ($self->is_running) {
     $self->signal('TERM');
@@ -491,6 +497,16 @@ sub terminate {
     $self->{handle_in}->push_shutdown;
     $self->{handle_out}->push_shutdown;
     $self->{handle_err}->push_shutdown;
+
+    if (defined $timeout) {
+      $self->{kill_timer} = AnyEvent->timer(
+        after => $timeout,
+        cb => sub{
+          $self->signal('KILL');
+          undef $self->{kill_timer};
+        },
+      );
+    }
 
     if ($self->{term_cb}) {
       $self->{term_cb}->($self);

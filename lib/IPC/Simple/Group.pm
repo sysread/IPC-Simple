@@ -34,6 +34,12 @@ Launches all of the processes in this group.
 
 Terminates all of the processes in this group.
 
+=head2 signal
+
+Sends a signal to all members of the group.
+
+  $group->signal('HUP');
+
 =head2 join
 
 Blocks until all of the processes in this group have terminated.
@@ -110,7 +116,12 @@ sub launch {
 
 sub terminate {
   my $self = shift;
-  $_->terminate for $self->members;
+  $_->terminate(@_) for $self->members;
+}
+
+sub signal {
+  my ($self, $signal) = @_;
+  $self->signal($signal) for $self->members;
 }
 
 sub join {

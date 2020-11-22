@@ -17,14 +17,14 @@ my $timeout = AnyEvent->timer(
   after => 10,
   cb => sub{
     diag 'timeout reached';
-    $proc->terminate;
+    $proc->signal('KILL');
     die 'timeout reached';
   },
 );
 
 ok $proc->launch, 'launch';
 
-$proc->terminate;
+$proc->terminate(10);
 ok $proc->is_stopping, 'is_stopping';
 
 $proc->join;
