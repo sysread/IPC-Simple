@@ -10,7 +10,7 @@ use IPC::Simple qw(spawn);
 
 BAIL_OUT 'OS unsupported' if $^O eq 'MSWin32';
 
-my $proc = spawn 'perl -e "sleep 10"';
+my $proc = spawn ['perl', '-e', 'sleep 10'];
 
 # Start a timer to ensure a bug doesn't cause us to run indefinitely
 my $timeout = AnyEvent->timer(
