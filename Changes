@@ -1,4 +1,6 @@
 {{$NEXT}}
+- Bugfix: use array of arguments for commands in tests to ensure we're
+  controlling a single sub-process
 
 0.06 2020-11-22
 - New: method signal() added
