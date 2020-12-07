@@ -12,13 +12,14 @@ Also note that processes being added to a group must fit the following criteria:
 
 =over
 
-=item not yet launched
-
 =item no recv_cb
 
 =item no term_cb
 
 =back
+
+Grouping processes that have already been launched may result in messages
+being queued in the process' own queue rather than the group one.
 
 =head1 METHODS
 
@@ -75,9 +76,6 @@ sub add {
   my $self = shift;
 
   for (@_) {
-    croak 'processes must be grouped *before* launching them'
-      unless $_->is_ready;
-
     croak 'processes must be named to be grouped'
       unless $_->name;
 
@@ -92,6 +90,12 @@ sub add {
     $self->{members}{ $_->{name} } = $_;
     $_->{recv_cb} = sub{ $self->{messages}->put( $_[0] ) };
     $_->{term_cb} = sub{ $self->drop( $_[0] ) };
+
+    # If the process has already been launched, move existing messages into the
+    # group queue.
+    unless ($_->is_ready) {
+      $self->{messages}->put( $_->{messages}->clear );
+    }
   }
 }
 
@@ -113,7 +117,10 @@ sub members {
 
 sub launch {
   my $self = shift;
-  $_->launch for $self->members;
+
+  for ($self->members) {
+    $_->launch if $_->is_ready;
+  }
 }
 
 sub terminate {

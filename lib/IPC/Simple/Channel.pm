@@ -83,4 +83,13 @@ sub flush {
   }
 }
 
+sub clear {
+  my $self = shift;
+  $self->flush;
+  my @msgs = @{ $self->{buffer} };
+  $self->{buffer} = [];
+  $self->{size} = 0;
+  return @msgs;
+}
+
 1;
