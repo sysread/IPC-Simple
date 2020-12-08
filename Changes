@@ -1,4 +1,6 @@
 {{$NEXT}}
+
+0.09 2020-12-08
 - Bugfix: deep recursion in IPC::Simple::Group->signal
 
 0.08 2020-12-07
