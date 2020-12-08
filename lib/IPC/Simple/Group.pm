@@ -130,7 +130,7 @@ sub terminate {
 
 sub signal {
   my ($self, $signal) = @_;
-  $self->signal($signal) for $self->members;
+  $_->signal($signal) for $self->members;
 }
 
 sub join {
